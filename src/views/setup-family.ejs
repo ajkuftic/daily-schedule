@@ -30,24 +30,101 @@
 
   <div class="form-group">
     <label>Default City <span class="hint">(weather when no travel detected)</span></label>
-    <input type="text" name="default_city" value="<%= config.default_city || '' %>" placeholder="Pittsburgh, PA" required>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="city-search" placeholder="Pittsburgh, PA" value="<%= config.default_city || '' %>" autocomplete="off" style="flex:1;">
+      <button type="button" class="btn btn-ghost" id="city-lookup-btn" onclick="lookupCity()">Look up</button>
+    </div>
+    <div id="city-results" style="display:none;margin-top:6px;border:1px solid var(--border);border-radius:var(--radius);background:var(--white);overflow:hidden;"></div>
+    <p class="field-hint" id="city-status"></p>
   </div>
 
-  <div class="form-row">
-    <div class="form-group">
-      <label>Latitude</label>
-      <input type="number" step="any" name="default_lat" value="<%= config.default_lat || '' %>" placeholder="40.4406" required>
-    </div>
-    <div class="form-group">
-      <label>Longitude</label>
-      <input type="number" step="any" name="default_lon" value="<%= config.default_lon || '' %>" placeholder="-79.9959" required>
-    </div>
-  </div>
+  <!-- Hidden fields written by geocoder; also editable as fallback -->
+  <input type="hidden" name="default_city" id="default_city" value="<%= config.default_city || '' %>">
+  <input type="hidden" name="default_lat"  id="default_lat"  value="<%= config.default_lat  || '' %>">
+  <input type="hidden" name="default_lon"  id="default_lon"  value="<%= config.default_lon  || '' %>">
+
+  <% if (config.default_lat && config.default_lon) { %>
+    <p class="field-hint" style="margin-top:-8px;">
+      Currently: <strong><%= config.default_city %></strong>
+      &nbsp;(<%= parseFloat(config.default_lat).toFixed(4) %>, <%= parseFloat(config.default_lon).toFixed(4) %>)
+    </p>
+  <% } %>
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Save</button>
     <a href="/setup/calendars" class="btn btn-ghost">Next: Calendars &rarr;</a>
   </div>
 </form>
+
+<script>
+async function lookupCity() {
+  const query  = document.getElementById('city-search').value.trim();
+  const status = document.getElementById('city-status');
+  const results = document.getElementById('city-results');
+  if (!query) return;
+
+  status.textContent = 'Searching…';
+  results.style.display = 'none';
+  results.innerHTML = '';
+
+  try {
+    const url  = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`;
+    const data = await fetch(url).then(r => r.json());
+
+    if (!data.results?.length) {
+      status.textContent = 'No results found. Try a different city name.';
+      return;
+    }
+
+    status.textContent = '';
+    results.style.display = 'block';
+    results.innerHTML = data.results.map((r, i) => {
+      const label = [r.name, r.admin1, r.country].filter(Boolean).join(', ');
+      return `<button type="button" class="geo-result" onclick="selectCity(${i})"
+        data-name="${label}" data-lat="${r.latitude}" data-lon="${r.longitude}">
+        <strong>${r.name}</strong><span class="geo-sub">${[r.admin1, r.country].filter(Boolean).join(', ')}</span>
+      </button>`;
+    }).join('');
+  } catch (e) {
+    status.textContent = 'Geocoding failed — check your connection and try again.';
+  }
+}
+
+function selectCity(i) {
+  const btn = document.querySelectorAll('.geo-result')[i];
+  document.getElementById('default_city').value = btn.dataset.name;
+  document.getElementById('default_lat').value  = btn.dataset.lat;
+  document.getElementById('default_lon').value  = btn.dataset.lon;
+  document.getElementById('city-search').value  = btn.dataset.name;
+  document.getElementById('city-results').style.display = 'none';
+  document.getElementById('city-status').textContent =
+    `✓ Set to ${btn.dataset.name} (${parseFloat(btn.dataset.lat).toFixed(4)}, ${parseFloat(btn.dataset.lon).toFixed(4)})`;
+}
+
+// Also trigger lookup on Enter in the search field
+document.getElementById('city-search').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); lookupCity(); }
+});
+</script>
+
+<style>
+.geo-result {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+}
+.geo-result:last-child { border-bottom: none; }
+.geo-result:hover { background: var(--cream); }
+.geo-sub { color: var(--muted); font-size: 13px; }
+</style>
 
 <%- include('_foot') %>
