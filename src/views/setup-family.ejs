@@ -9,7 +9,7 @@
 <form method="POST" action="/setup/family" class="form">
   <div class="form-group">
     <label>Family Name <span class="hint">(used in email subject and header)</span></label>
-    <input type="text" name="family_name" value="<%= config.family_name || '' %>" placeholder="Kuftic" required>
+    <input type="text" name="family_name" value="<%= config.family_name || '' %>" placeholder="Smith" required>
   </div>
 
   <div class="form-group">
@@ -19,7 +19,7 @@
 
   <div class="form-group">
     <label>From Name <span class="hint">(leave blank to use "The Daily [Family Name]")</span></label>
-    <input type="text" name="from_name" value="<%= config.from_name || '' %>" placeholder="The Daily Kuftic">
+    <input type="text" name="from_name" value="<%= config.from_name || '' %>" placeholder="The Daily Smith">
   </div>
 
   <div class="form-group">
