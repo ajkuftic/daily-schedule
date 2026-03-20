@@ -7,9 +7,10 @@ const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 
-const setupRoutes = require('./routes/setup');
-const authRoutes  = require('./routes/auth');
-const apiRoutes   = require('./routes/api');
+const setupRoutes   = require('./routes/setup');
+const authRoutes    = require('./routes/auth');
+const apiRoutes     = require('./routes/api');
+const webhookRoutes = require('./routes/webhook');
 const { startScheduler } = require('./scheduler');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../data');
@@ -35,9 +36,10 @@ app.use(session({
 }));
 
 // ── ROUTES ────────────────────────────────────────────────────
-app.use('/setup', setupRoutes);
-app.use('/auth',  authRoutes);
-app.use('/api',   apiRoutes);
+app.use('/setup',   setupRoutes);
+app.use('/auth',    authRoutes);
+app.use('/api',     apiRoutes);
+app.use('/webhook', webhookRoutes);
 
 // Root → dashboard
 app.get('/', (req, res) => res.redirect('/setup'));
