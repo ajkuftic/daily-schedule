@@ -15,7 +15,10 @@
     </p>
   </div>
   <% if (config.setup_complete) { %>
-    <button class="btn btn-primary" id="sendNowBtn">Send Now</button>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" id="sendNowBtn">Send Now</button>
+      <a href="/api/preview" target="_blank" class="btn btn-ghost" id="previewBtn">Preview</a>
+    </div>
   <% } %>
 </div>
 

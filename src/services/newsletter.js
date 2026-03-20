@@ -11,31 +11,29 @@ const { buildPrintHTML }           = require('../templates/print');
 const db = require('../db/index');
 
 /**
- * Build and send the daily newsletter.
- * This is the main orchestration function — called by the scheduler and the "Send Now" API.
+ * Build newsletter content (events, weather, HTML) without sending.
+ * Used by both sendDailyNewsletter and the preview route.
  *
  * @param {object} config   - result of db.getAllConfig()
- * @returns {Promise<void>}
+ * @returns {Promise<{ emailHtml, printHtml, isoDate, dateStr, credentialUpdates }>}
  */
-async function sendDailyNewsletter(config) {
-  const timezone    = config.timezone || 'America/New_York';
-  const familyName  = config.family_name || 'Family';
-  const sendTo      = config.send_to;
-  const fromName    = config.from_name  || `The Daily ${familyName}`;
+async function buildNewsletterContent(config) {
+  const timezone   = config.timezone || 'America/New_York';
+  const familyName = config.family_name || 'Family';
 
   // ── Determine target date (tomorrow in the user's timezone) ──
-  const now        = new Date();
-  const todayStr   = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
-  const [y, m, d]  = todayStr.split('-').map(Number);
-  const nextD      = new Date(Date.UTC(y, m - 1, d + 1));
-  const isoDate    = nextD.toISOString().substring(0, 10);
-  const dateStr    = new Intl.DateTimeFormat('en-US', {
+  const now       = new Date();
+  const todayStr  = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
+  const [y, m, d] = todayStr.split('-').map(Number);
+  const nextD     = new Date(Date.UTC(y, m - 1, d + 1));
+  const isoDate   = nextD.toISOString().substring(0, 10);
+  const dateStr   = new Intl.DateTimeFormat('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   }).format(nextD);
 
   const dayStart = new Date(`${isoDate}T00:00:00Z`);
   const dayEnd   = new Date(`${isoDate}T23:59:59Z`);
-  dayEnd.setTime(dayEnd.getTime() + 14 * 60 * 60 * 1000); // extend for late-timezone events
+  dayEnd.setTime(dayEnd.getTime() + 14 * 60 * 60 * 1000);
 
   console.log(`[newsletter] Target date: ${isoDate} (${dateStr})`);
 
@@ -45,11 +43,6 @@ async function sendDailyNewsletter(config) {
     calendarAccounts, dayStart, dayEnd, isoDate, timezone
   );
   console.log(`[newsletter] Events: ${events.length}`);
-
-  // Persist any refreshed OAuth tokens
-  for (const { accountId, credentials } of credentialUpdates) {
-    db.upsertCalendarAccount({ ...db.getCalendarAccount(accountId), credentials });
-  }
 
   // ── Weather ───────────────────────────────────────────────────
   const location = resolveWeatherLocation(
@@ -73,7 +66,30 @@ async function sendDailyNewsletter(config) {
 
   // ── Build HTML ────────────────────────────────────────────────
   const emailHtml = buildEmailHTML({ dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName });
-  const printHtml = buildPrintHTML({  dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName });
+  const printHtml = buildPrintHTML({ dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName });
+
+  return { emailHtml, printHtml, isoDate, dateStr, credentialUpdates };
+}
+
+/**
+ * Build and send the daily newsletter.
+ * Called by the scheduler and the "Send Now" API.
+ *
+ * @param {object} config   - result of db.getAllConfig()
+ * @returns {Promise<void>}
+ */
+async function sendDailyNewsletter(config) {
+  const familyName = config.family_name || 'Family';
+  const sendTo     = config.send_to;
+  const fromName   = config.from_name || `The Daily ${familyName}`;
+
+  const { emailHtml, printHtml, isoDate, dateStr, credentialUpdates } =
+    await buildNewsletterContent(config);
+
+  // Persist any refreshed calendar OAuth tokens
+  for (const { accountId, credentials } of credentialUpdates) {
+    db.upsertCalendarAccount({ ...db.getCalendarAccount(accountId), credentials });
+  }
 
   // ── Generate PDF ──────────────────────────────────────────────
   const subject  = `Daily ${familyName} \u2013 ${dateStr}`;
@@ -131,4 +147,4 @@ function injectDepartureEvents(events) {
   return result;
 }
 
-module.exports = { sendDailyNewsletter };
+module.exports = { sendDailyNewsletter, buildNewsletterContent };

@@ -2,7 +2,7 @@
 
 const express = require('express');
 const db      = require('../db/index');
-const { sendDailyNewsletter } = require('../services/newsletter');
+const { sendDailyNewsletter, buildNewsletterContent } = require('../services/newsletter');
 const { reschedule }          = require('../scheduler');
 
 const router = express.Router();
@@ -56,6 +56,18 @@ router.post('/schedule', (req, res) => {
   db.setConfig('schedule_hour', parseInt(hour, 10));
   reschedule();
   res.json({ ok: true });
+});
+
+// GET /api/preview — render tomorrow's newsletter HTML in the browser (no send, no log)
+router.get('/preview', async (req, res) => {
+  try {
+    const config = db.getAllConfig();
+    const view   = req.query.view === 'print' ? 'print' : 'email';
+    const { emailHtml, printHtml } = await buildNewsletterContent(config);
+    res.send(view === 'print' ? printHtml : emailHtml);
+  } catch (err) {
+    res.status(500).send(`<pre style="font-family:monospace;padding:24px;">Preview error:\n\n${err.message}\n\n${err.stack}</pre>`);
+  }
 });
 
 module.exports = router;
