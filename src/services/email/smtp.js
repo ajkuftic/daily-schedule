@@ -15,10 +15,14 @@ const nodemailer = require('nodemailer');
  * }
  */
 async function sendSMTP({ credentials, to, subject, htmlBody, fromName, attachments = [], cc }) {
+  const port   = credentials.port || 587;
+  const secure = port === 465;       // 465 = implicit SSL, 587/25 = STARTTLS
+
   const transport = nodemailer.createTransport({
-    host:   credentials.host,
-    port:   credentials.port || 587,
-    secure: credentials.secure !== false,
+    host:       credentials.host,
+    port,
+    secure,
+    requireTLS: !secure,             // force STARTTLS upgrade on port 587
     auth: {
       user: credentials.user,
       pass: credentials.password,
