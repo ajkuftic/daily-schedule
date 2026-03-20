@@ -50,12 +50,14 @@ router.get('/', (req, res) => {
 
 // ── GOOGLE OAUTH WALKTHROUGH ──────────────────────────────────
 router.get('/google-oauth', (req, res) => {
-  const config     = db.getAllConfig();
-  const returnTo   = req.query.return_to || '/setup/calendars';
-  const host       = req.headers.host || `localhost:${process.env.PORT || 3000}`;
-  const protocol   = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-  const redirectUri = `${protocol}://${host}/auth/google/callback`;
-  res.render('setup-google-oauth', { config, returnTo, redirectUri, flash: req.query });
+  const config    = db.getAllConfig();
+  const returnTo  = req.query.return_to || '/setup/calendars';
+  const host      = req.headers.host || `localhost:${process.env.PORT || 3000}`;
+  const protocol  = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${protocol}://${host}/auth/google/callback`;
+  const hostname  = new URL(redirectUri).hostname;
+  const isPrivateIp = /^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.)/.test(hostname);
+  res.render('setup-google-oauth', { config, returnTo, redirectUri, isPrivateIp, flash: req.query });
 });
 
 router.post('/google-oauth', (req, res) => {

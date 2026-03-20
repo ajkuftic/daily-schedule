@@ -113,6 +113,16 @@
       </li>
       <li>Click <strong>Create</strong></li>
     </ol>
+    <% if (isPrivateIp) { %>
+    <div class="callout callout-warn">
+      <strong>Private IP detected.</strong> Google does not allow private IP addresses (10.x, 192.168.x, 172.16–31.x) as redirect URIs.
+      You have two options:
+      <ol style="margin-top:8px;">
+        <li><strong>Use a hostname instead of an IP.</strong> Add an entry to your router's DNS or your computer's <code>/etc/hosts</code> file mapping a name like <code>daily.home</code> to <code><%= new URL(redirectUri).hostname %></code>, then access the app via that hostname. The redirect URI will update automatically.</li>
+        <li><strong>Set <code>GOOGLE_REDIRECT_URI</code></strong> in your <code>docker-compose.yml</code> to a publicly reachable URL (e.g. via Cloudflare Tunnel or a reverse proxy with a real domain), and register that URL in Google Cloud Console instead.</li>
+      </ol>
+    </div>
+    <% } %>
     <p>A dialog will appear showing your <strong>Client ID</strong> and <strong>Client Secret</strong>. Copy both — you'll paste them below.</p>
   </div>
 </div>
@@ -217,6 +227,11 @@
   font-size: 13px;
   color: #1e40af;
   line-height: 1.55;
+}
+.callout-warn {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #92400e;
 }
 </style>
 
