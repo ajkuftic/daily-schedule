@@ -8,7 +8,8 @@
     "dev": "node --watch src/server.js"
   },
   "overrides": {
-    "node-gyp": "^10.2.0"
+    "node-gyp": "^12.0.0",
+    "sqlite3": "^6.0.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
@@ -23,7 +24,7 @@
     "express-session": "^1.18.1",
     "googleapis": "^144.0.0",
     "node-cron": "^3.0.3",
-    "nodemailer": "^6.9.16",
+    "nodemailer": "^8.0.3",
     "tsdav": "^2.0.11",
     "uuid": "^11.0.4"
   }
