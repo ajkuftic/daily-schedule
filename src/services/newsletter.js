@@ -114,6 +114,17 @@ async function sendDailyNewsletter(config) {
 
   db.logSend(isoDate, 'success', `Sent to ${sendTo}`);
   console.log(`[newsletter] Sent for ${dateStr}${pdf ? ' with PDF' : ''}`);
+
+  // ── Outgoing webhook ──────────────────────────────────────────
+  const webhookUrl = config.webhook_outgoing_url;
+  if (webhookUrl) {
+    fetch(webhookUrl, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ date: isoDate, dateStr, status: 'success', subject, sentTo: sendTo }),
+      signal:  AbortSignal.timeout(10_000),
+    }).catch(err => console.error('[webhook] Outgoing notify failed:', err.message));
+  }
 }
 
 function injectDepartureEvents(events) {

@@ -253,4 +253,36 @@ router.post('/schedule', (req, res) => {
   }
 });
 
+// ── WEBHOOKS ──────────────────────────────────────────────────
+router.get('/webhooks', (req, res) => {
+  // Auto-generate a secret on first visit
+  if (!db.getConfig('webhook_secret')) {
+    const crypto = require('crypto');
+    db.setConfig('webhook_secret', crypto.randomBytes(24).toString('hex'));
+  }
+  const config = db.getAllConfig();
+  const host     = req.headers.host || `localhost:${process.env.PORT || 3000}`;
+  const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+  res.render('setup-webhooks', { config, host, protocol, flash: req.query });
+});
+
+router.post('/webhooks', (req, res) => {
+  try {
+    const { action, webhook_outgoing_url } = req.body;
+
+    if (action === 'regenerate') {
+      const crypto = require('crypto');
+      db.setConfig('webhook_secret', crypto.randomBytes(24).toString('hex'));
+    }
+
+    if (action === 'save-outgoing') {
+      db.setConfig('webhook_outgoing_url', webhook_outgoing_url || '');
+    }
+
+    res.redirect('/setup/webhooks?saved=1');
+  } catch (err) {
+    errRedirect(res, '/setup/webhooks', err);
+  }
+});
+
 module.exports = router;
