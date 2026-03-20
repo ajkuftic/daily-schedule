@@ -113,7 +113,7 @@ Enter a URL on the Webhooks page and the app will `POST` a JSON payload to it af
   "date": "2026-03-20",
   "dateStr": "Thursday, March 20, 2026",
   "status": "success",
-  "subject": "The Daily Kuftic — Thursday, March 20, 2026",
+  "subject": "The Daily Smith — Thursday, March 20, 2026",
   "sentTo": "family@example.com"
 }
 ```
