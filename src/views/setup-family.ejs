@@ -3,7 +3,8 @@
 <h1>Family &amp; Location</h1>
 <p class="subtitle">Basic identity and default location for weather.</p>
 
-<% if (flash.saved) { %><div class="alert alert-success">Settings saved.</div><% } %>
+<% if (flash.saved)  { %><div class="alert alert-success">Settings saved.</div><% } %>
+<% if (flash.error)  { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
 <form method="POST" action="/setup/family" class="form">
   <div class="form-group">

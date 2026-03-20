@@ -35,10 +35,12 @@ async function fetchGoogleCalendarEvents({
   oauth2Client.setCredentials(credentials);
 
   // Auto-refresh if expired
+  let didRefresh = false;
   if (credentials.expiry_date && Date.now() > credentials.expiry_date - 60000) {
     const { credentials: refreshed } = await oauth2Client.refreshAccessToken();
     oauth2Client.setCredentials(refreshed);
-    credentials = refreshed; // caller should persist this
+    credentials  = refreshed;
+    didRefresh   = true;
   }
 
   const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
@@ -87,7 +89,7 @@ async function fetchGoogleCalendarEvents({
     }
   }
 
-  return { events: allEvents, refreshedCredentials: credentials };
+  return { events: allEvents, refreshedCredentials: didRefresh ? credentials : null };
 }
 
 module.exports = { fetchGoogleCalendarEvents };

@@ -1,22 +1,26 @@
 <%- include('_head', { title: 'Schedule' }) %>
 
 <h1>Delivery Schedule</h1>
-<p class="subtitle">Choose when to send the daily newsletter each morning.</p>
+<p class="subtitle">Choose when to send the daily newsletter.</p>
 
-<% if (flash.saved) { %><div class="alert alert-success">Schedule saved. The newsletter will send daily at the chosen time.</div><% } %>
+<% if (flash.saved)  { %><div class="alert alert-success">Schedule saved. The newsletter will send daily at the chosen time.</div><% } %>
+<% if (flash.error)  { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
 <form method="POST" action="/setup/schedule" class="form">
   <div class="card">
     <div class="form-group">
       <label>Send Time</label>
       <select name="hour">
-        <% for (let h = 4; h <= 11; h++) { %>
+        <% for (let h = 0; h <= 23; h++) {
+             const period  = h < 12 ? 'AM' : 'PM';
+             const display = h === 0 ? '12' : h <= 12 ? String(h) : String(h - 12);
+        %>
           <option value="<%= h %>" <%= (parseInt(config.schedule_hour ?? 7) === h ? 'selected' : '') %>>
-            <%= h %>:00 AM
+            <%= display %>:00 <%= period %>
           </option>
         <% } %>
       </select>
-      <p class="field-hint">Times are in <%= config.timezone || 'America/New_York' %>. The newsletter covers the <em>following</em> day's events.</p>
+      <p class="field-hint">Times are in <%= config.timezone || 'America/New_York' %>. The newsletter always covers <em>tomorrow's</em> events — sending at night gives you a preview before bed.</p>
     </div>
   </div>
 

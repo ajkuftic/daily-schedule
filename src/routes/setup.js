@@ -1,10 +1,43 @@
 'use strict';
 
-const express = require('express');
-const db      = require('../db/index');
+const express    = require('express');
+const nodemailer = require('nodemailer');
+const db         = require('../db/index');
 const { reschedule } = require('../scheduler');
 
 const router = express.Router();
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+function errRedirect(res, url, err) {
+  const msg = encodeURIComponent((err && err.message) || String(err));
+  res.redirect(`${url}?error=${msg}`);
+}
+
+async function validateIcsUrl(url) {
+  const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ICS URL`);
+  const text = await res.text();
+  if (!text.includes('BEGIN:VCALENDAR')) throw new Error('URL does not appear to be a valid ICS/iCal feed');
+}
+
+async function validateCalDav({ serverUrl, username, password, authMethod }) {
+  // Quick HTTP probe: try PROPFIND on the server root — a 401/207/405 all mean the server is reachable
+  const auth = Buffer.from(`${username}:${password}`).toString('base64');
+  const probe = await fetch(serverUrl, {
+    method:  'PROPFIND',
+    headers: {
+      Authorization: `Basic ${auth}`,
+      Depth:         '0',
+      'Content-Type': 'text/xml',
+    },
+    body:   '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:current-user-principal/></d:prop></d:propfind>',
+    signal: AbortSignal.timeout(10_000),
+  });
+  // 207 = success, 401 = server reachable but bad credentials, anything else is a problem
+  if (probe.status === 401) throw new Error('CalDAV authentication failed — check username and password');
+  if (!probe.ok && probe.status !== 207) throw new Error(`CalDAV server returned HTTP ${probe.status}`);
+}
 
 // ── DASHBOARD ─────────────────────────────────────────────────
 router.get('/', (req, res) => {
@@ -26,13 +59,17 @@ router.get('/google-oauth', (req, res) => {
 });
 
 router.post('/google-oauth', (req, res) => {
-  const { google_client_id, google_client_secret, return_to } = req.body;
-  const returnTo = return_to || '/setup/calendars';
-  if (google_client_id) db.setConfig('google_client_id', google_client_id);
-  if (google_client_secret && !google_client_secret.startsWith('••')) {
-    db.setConfig('google_client_secret', google_client_secret);
+  try {
+    const { google_client_id, google_client_secret, return_to } = req.body;
+    const returnTo = return_to || '/setup/calendars';
+    if (google_client_id) db.setConfig('google_client_id', google_client_id);
+    if (google_client_secret && !google_client_secret.startsWith('••')) {
+      db.setConfig('google_client_secret', google_client_secret);
+    }
+    res.redirect(`/setup/google-oauth?saved=1&return_to=${encodeURIComponent(returnTo)}`);
+  } catch (err) {
+    errRedirect(res, '/setup/google-oauth', err);
   }
-  res.redirect(`/setup/google-oauth?saved=1&return_to=${encodeURIComponent(returnTo)}`);
 });
 
 // ── FAMILY / GENERAL SETTINGS ─────────────────────────────────
@@ -42,15 +79,22 @@ router.get('/family', (req, res) => {
 });
 
 router.post('/family', (req, res) => {
-  const { family_name, send_to, from_name, timezone, default_city, default_lat, default_lon } = req.body;
-  db.setConfig('family_name',  family_name);
-  db.setConfig('send_to',      send_to);
-  db.setConfig('from_name',    from_name || `The Daily ${family_name}`);
-  db.setConfig('timezone',     timezone);
-  db.setConfig('default_city', default_city);
-  db.setConfig('default_lat',  default_lat);
-  db.setConfig('default_lon',  default_lon);
-  res.redirect('/setup/family?saved=1');
+  try {
+    const { family_name, send_to, from_name, timezone, default_city, default_lat, default_lon } = req.body;
+    if (!family_name) throw new Error('Family name is required');
+    if (!send_to)     throw new Error('Send-to email is required');
+    if (!timezone)    throw new Error('Timezone is required');
+    db.setConfig('family_name',  family_name);
+    db.setConfig('send_to',      send_to);
+    db.setConfig('from_name',    from_name || `The Daily ${family_name}`);
+    db.setConfig('timezone',     timezone);
+    db.setConfig('default_city', default_city);
+    db.setConfig('default_lat',  default_lat);
+    db.setConfig('default_lon',  default_lon);
+    res.redirect('/setup/family?saved=1');
+  } catch (err) {
+    errRedirect(res, '/setup/family', err);
+  }
 });
 
 // ── API KEYS ──────────────────────────────────────────────────
@@ -60,11 +104,15 @@ router.get('/api-keys', (req, res) => {
 });
 
 router.post('/api-keys', (req, res) => {
-  const { claude_api_key, html2pdf_api_key, epson_connect_email } = req.body;
-  if (claude_api_key)      db.setConfig('claude_api_key',      claude_api_key);
-  if (html2pdf_api_key)    db.setConfig('html2pdf_api_key',    html2pdf_api_key);
-  db.setConfig('epson_connect_email', epson_connect_email || '');
-  res.redirect('/setup/api-keys?saved=1');
+  try {
+    const { claude_api_key, html2pdf_api_key, epson_connect_email } = req.body;
+    if (claude_api_key)      db.setConfig('claude_api_key',      claude_api_key);
+    if (html2pdf_api_key)    db.setConfig('html2pdf_api_key',    html2pdf_api_key);
+    db.setConfig('epson_connect_email', epson_connect_email || '');
+    res.redirect('/setup/api-keys?saved=1');
+  } catch (err) {
+    errRedirect(res, '/setup/api-keys', err);
+  }
 });
 
 // ── CALENDARS ─────────────────────────────────────────────────
@@ -74,29 +122,43 @@ router.get('/calendars', (req, res) => {
 });
 
 // Save CalDAV account
-router.post('/calendars/caldav', (req, res) => {
-  const { name, server_url, username, password, auth_method, is_reminder } = req.body;
-  db.upsertCalendarAccount({
-    name,
-    provider:    'caldav',
-    is_reminder: !!is_reminder,
-    credentials: { serverUrl: server_url, username, password, authMethod: auth_method || 'Basic' },
-    metadata:    { displayName: name },
-  });
-  res.redirect('/setup/calendars?saved=caldav');
+router.post('/calendars/caldav', async (req, res) => {
+  try {
+    const { name, server_url, username, password, auth_method, is_reminder } = req.body;
+    if (!server_url) throw new Error('Server URL is required');
+    if (!username)   throw new Error('Username is required');
+    if (!password)   throw new Error('Password is required');
+    await validateCalDav({ serverUrl: server_url, username, password, authMethod: auth_method || 'Basic' });
+    db.upsertCalendarAccount({
+      name,
+      provider:    'caldav',
+      is_reminder: !!is_reminder,
+      credentials: { serverUrl: server_url, username, password, authMethod: auth_method || 'Basic' },
+      metadata:    { displayName: name },
+    });
+    res.redirect('/setup/calendars?saved=caldav');
+  } catch (err) {
+    errRedirect(res, '/setup/calendars', err);
+  }
 });
 
 // Save ICS feed
-router.post('/calendars/ics', (req, res) => {
-  const { name, url, is_reminder } = req.body;
-  db.upsertCalendarAccount({
-    name,
-    provider:    'ics',
-    is_reminder: !!is_reminder,
-    credentials: { url },
-    metadata:    { displayName: name },
-  });
-  res.redirect('/setup/calendars?saved=ics');
+router.post('/calendars/ics', async (req, res) => {
+  try {
+    const { name, url, is_reminder } = req.body;
+    if (!url) throw new Error('ICS URL is required');
+    await validateIcsUrl(url);
+    db.upsertCalendarAccount({
+      name,
+      provider:    'ics',
+      is_reminder: !!is_reminder,
+      credentials: { url },
+      metadata:    { displayName: name },
+    });
+    res.redirect('/setup/calendars?saved=ics');
+  } catch (err) {
+    errRedirect(res, '/setup/calendars', err);
+  }
 });
 
 // Google calendar picker (after OAuth)
@@ -148,13 +210,28 @@ router.get('/email', (req, res) => {
   res.render('setup-email', { account, flash: req.query });
 });
 
-router.post('/email/smtp', (req, res) => {
-  const { host, port, secure, user, password, from } = req.body;
-  db.upsertEmailAccount({
-    provider:    'smtp',
-    credentials: { host, port: parseInt(port, 10), secure: secure === 'on', user, password, from: from || user },
-  });
-  res.redirect('/setup/email?saved=smtp');
+router.post('/email/smtp', async (req, res) => {
+  try {
+    const { host, port, user, password, from } = req.body;
+    if (!host || !user || !password) throw new Error('Host, username, and password are required');
+    const portNum  = parseInt(port, 10) || 587;
+    const secure   = portNum === 465;
+    const transport = nodemailer.createTransport({
+      host,
+      port:       portNum,
+      secure,
+      requireTLS: !secure,
+      auth:       { user, pass: password },
+    });
+    await transport.verify();
+    db.upsertEmailAccount({
+      provider:    'smtp',
+      credentials: { host, port: portNum, secure, user, password, from: from || user },
+    });
+    res.redirect('/setup/email?saved=smtp');
+  } catch (err) {
+    errRedirect(res, '/setup/email', err);
+  }
 });
 
 // ── SCHEDULE ──────────────────────────────────────────────────
@@ -164,11 +241,16 @@ router.get('/schedule', (req, res) => {
 });
 
 router.post('/schedule', (req, res) => {
-  const { hour } = req.body;
-  db.setConfig('schedule_hour', parseInt(hour, 10));
-  db.setConfig('setup_complete', true);
-  reschedule();
-  res.redirect('/setup/schedule?saved=1');
+  try {
+    const { hour } = req.body;
+    if (hour === undefined || isNaN(parseInt(hour, 10))) throw new Error('A send hour is required');
+    db.setConfig('schedule_hour', parseInt(hour, 10));
+    db.setConfig('setup_complete', true);
+    reschedule();
+    res.redirect('/setup/schedule?saved=1');
+  } catch (err) {
+    errRedirect(res, '/setup/schedule', err);
+  }
 });
 
 module.exports = router;

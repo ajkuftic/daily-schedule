@@ -87,7 +87,14 @@ async function sendDailyNewsletter(config) {
   const attachments = pdf ? [pdf] : [];
   const cc = pdf && config.epson_connect_email ? config.epson_connect_email : undefined;
 
-  await sendEmail({ emailAccount, to: sendTo, subject, htmlBody: emailHtml, fromName, attachments, cc });
+  const { refreshedCredentials: refreshedEmailCreds } = await sendEmail({
+    emailAccount, to: sendTo, subject, htmlBody: emailHtml, fromName, attachments, cc,
+  });
+
+  if (refreshedEmailCreds) {
+    db.updateEmailCredentials({ ...emailAccount.credentials, ...refreshedEmailCreds });
+    console.log('[newsletter] Gmail token refreshed and persisted');
+  }
 
   db.logSend(isoDate, 'success', `Sent to ${sendTo}`);
   console.log(`[newsletter] Sent for ${dateStr}${pdf ? ' with PDF' : ''}`);

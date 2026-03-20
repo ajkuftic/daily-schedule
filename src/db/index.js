@@ -86,6 +86,12 @@ function upsertEmailAccount(data) {
   );
 }
 
+function updateEmailCredentials(credentials) {
+  db.prepare('UPDATE email_account SET credentials = ? WHERE id = (SELECT id FROM email_account ORDER BY id DESC LIMIT 1)').run(
+    JSON.stringify(credentials)
+  );
+}
+
 // ── SEND LOG HELPERS ──────────────────────────────────────────
 function logSend(date, status, details) {
   db.prepare('INSERT INTO send_log (date, status, details) VALUES (?, ?, ?)').run(date, status, details || null);
@@ -117,6 +123,7 @@ module.exports = {
   deleteCalendarAccount,
   getEmailAccount,
   upsertEmailAccount,
+  updateEmailCredentials,
   logSend,
   getRecentLogs,
 };

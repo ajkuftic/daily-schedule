@@ -3,7 +3,8 @@
 <h1>API Keys</h1>
 <p class="subtitle">Third-party services used to generate content.</p>
 
-<% if (flash.saved) { %><div class="alert alert-success">API keys saved.</div><% } %>
+<% if (flash.saved)  { %><div class="alert alert-success">API keys saved.</div><% } %>
+<% if (flash.error)  { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
 <form method="POST" action="/setup/api-keys" class="form">
 

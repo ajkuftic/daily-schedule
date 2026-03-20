@@ -6,15 +6,27 @@ const nodemailer = require('nodemailer');
 /**
  * Send email via Gmail OAuth2.
  *
- * credentials: { access_token, refresh_token, expiry_date }
+ * credentials: { access_token, refresh_token, expiry_date, email }
+ * Returns { info, refreshedCredentials } — refreshedCredentials is null if no refresh happened.
  */
 async function sendGmail({ credentials, to, subject, htmlBody, fromName, attachments = [], cc }) {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI,
-  );
+  const db       = require('../../db/index');
+  const dbConfig = db.getAllConfig();
+  const clientId     = process.env.GOOGLE_CLIENT_ID     || dbConfig.google_client_id;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || dbConfig.google_client_secret;
+  const redirectUri  = process.env.GOOGLE_REDIRECT_URI  || 'http://localhost:3000/auth/google/callback';
+
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   oauth2Client.setCredentials(credentials);
+
+  // Refresh proactively if token is expired or about to expire
+  let refreshedCredentials = null;
+  if (credentials.expiry_date && Date.now() > credentials.expiry_date - 60000) {
+    const { credentials: refreshed } = await oauth2Client.refreshAccessToken();
+    oauth2Client.setCredentials(refreshed);
+    credentials          = { ...credentials, ...refreshed };
+    refreshedCredentials = credentials;
+  }
 
   const transport = nodemailer.createTransport({
     service: 'gmail',
@@ -24,12 +36,12 @@ async function sendGmail({ credentials, to, subject, htmlBody, fromName, attachm
       accessToken:  credentials.access_token,
       refreshToken: credentials.refresh_token,
       expires:      credentials.expiry_date,
-      clientId:     process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId,
+      clientSecret,
     },
   });
 
-  const mailOptions = {
+  const info = await transport.sendMail({
     from:        `"${fromName}" <${credentials.email}>`,
     to,
     cc,
@@ -40,10 +52,9 @@ async function sendGmail({ credentials, to, subject, htmlBody, fromName, attachm
       content:     a.buffer,
       contentType: 'application/pdf',
     })),
-  };
+  });
 
-  const info = await transport.sendMail(mailOptions);
-  return info;
+  return { info, refreshedCredentials };
 }
 
 module.exports = { sendGmail };

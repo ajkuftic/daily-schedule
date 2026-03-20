@@ -24,12 +24,14 @@ async function fetchOutlookCalendarEvents({
   isoDate,
   defaultTz,
 }) {
-  let token = credentials.access_token;
+  let token      = credentials.access_token;
+  let didRefresh = false;
 
   // Refresh if needed
   if (credentials.expiry_date && Date.now() > credentials.expiry_date - 60000) {
-    token = await refreshOutlookToken(credentials.refresh_token);
+    token       = await refreshOutlookToken(credentials.refresh_token);
     credentials = { ...credentials, access_token: token, expiry_date: Date.now() + 3600000 };
+    didRefresh  = true;
   }
 
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -76,7 +78,7 @@ async function fetchOutlookCalendarEvents({
     }
   }
 
-  return { events: allEvents, refreshedCredentials: credentials };
+  return { events: allEvents, refreshedCredentials: didRefresh ? credentials : null };
 }
 
 async function refreshOutlookToken(refreshToken) {
