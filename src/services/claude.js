@@ -52,7 +52,7 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
         model:      'claude-haiku-4-5-20251001',
         max_tokens: 150,
         messages:   [{ role: 'user', content: prompt }],
-      });
+      }, { timeout: 20_000 });
 
       const raw = message.content[0]?.text?.trim() || '';
       const parts = raw.split('---TRAVEL---');
