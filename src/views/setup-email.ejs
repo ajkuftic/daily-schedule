@@ -1,0 +1,72 @@
+<%- include('_head', { title: 'Email Setup' }) %>
+
+<h1>Email Sender</h1>
+<p class="subtitle">Choose how to send the daily newsletter.</p>
+
+<% if (flash.saved)   { %><div class="alert alert-success">Email configured.</div><% } %>
+<% if (flash.error)   { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
+
+<% if (account) { %>
+  <div class="alert alert-info">
+    Currently configured: <strong><%= account.provider %></strong>
+    (<%= account.credentials?.email || account.credentials?.user || 'connected' %>)
+  </div>
+<% } %>
+
+<div class="provider-grid">
+
+  <!-- Gmail OAuth -->
+  <div class="card">
+    <h3>Gmail (OAuth)</h3>
+    <p class="muted">Send from your Gmail account. Uses OAuth — no password stored.</p>
+    <a href="/auth/google?purpose=email" class="btn btn-primary">Connect Gmail &rarr;</a>
+    <p style="margin:10px 0 0;font-size:13px;">
+      First time? <a href="/setup/google-oauth?return_to=/setup/email">Set up Google OAuth &rarr;</a>
+    </p>
+  </div>
+
+  <!-- SMTP -->
+  <div class="card">
+    <h3>SMTP</h3>
+    <p class="muted">Any email provider: Fastmail, iCloud Mail, Proton Mail, SendGrid, etc.</p>
+    <details>
+      <summary class="btn btn-ghost">Configure SMTP</summary>
+      <form method="POST" action="/setup/email/smtp" class="form" style="margin-top:16px;">
+        <div class="form-group">
+          <label>SMTP Host</label>
+          <input type="text" name="host" placeholder="smtp.fastmail.com" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Port</label>
+            <input type="number" name="port" value="465" required>
+          </div>
+          <div class="form-group">
+            <label>TLS</label>
+            <label><input type="checkbox" name="secure" checked> Use TLS (port 465)</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" name="user" placeholder="you@fastmail.com" required>
+        </div>
+        <div class="form-group">
+          <label>Password / App Password</label>
+          <input type="password" name="password" required>
+        </div>
+        <div class="form-group">
+          <label>From Address <span class="hint">(defaults to username)</span></label>
+          <input type="email" name="from" placeholder="you@fastmail.com">
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </form>
+    </details>
+  </div>
+
+</div>
+
+<div class="form-actions" style="margin-top:24px;">
+  <a href="/setup/api-keys" class="btn btn-ghost">Next: API Keys &rarr;</a>
+</div>
+
+<%- include('_foot') %>

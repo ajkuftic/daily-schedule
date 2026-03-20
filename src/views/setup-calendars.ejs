@@ -1,0 +1,112 @@
+<%- include('_head', { title: 'Calendars' }) %>
+
+<h1>Calendar Sources</h1>
+<p class="subtitle">Add one or more calendar accounts to pull events from.</p>
+
+<% if (flash.saved)   { %><div class="alert alert-success">Calendar added.</div><% } %>
+<% if (flash.deleted) { %><div class="alert alert-success">Calendar removed.</div><% } %>
+<% if (flash.error)   { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
+
+<% if (accounts.length > 0) { %>
+  <div class="card" style="margin-bottom:24px;">
+    <h3>Connected Calendars</h3>
+    <table class="table">
+      <thead><tr><th>Name</th><th>Provider</th><th>Reminder?</th><th></th></tr></thead>
+      <tbody>
+        <% for (const a of accounts) { %>
+          <tr>
+            <td><%= a.name %></td>
+            <td><span class="badge badge-<%= a.provider %>"><%= a.provider %></span></td>
+            <td><%= a.is_reminder ? 'Yes' : 'No' %></td>
+            <td>
+              <form method="POST" action="/setup/calendars/delete/<%= a.id %>" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this calendar?')">Remove</button>
+              </form>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<div class="provider-grid">
+
+  <!-- Google Calendar -->
+  <div class="card">
+    <h3>Google Calendar</h3>
+    <p class="muted">Connects via OAuth. You'll pick which calendars to include after connecting.</p>
+    <a href="/auth/google?purpose=calendar" class="btn btn-primary">Connect Google &rarr;</a>
+    <p style="margin:10px 0 0;font-size:13px;">
+      First time? <a href="/setup/google-oauth?return_to=/setup/calendars">Set up Google OAuth &rarr;</a>
+    </p>
+  </div>
+
+  <!-- Outlook / Microsoft -->
+  <div class="card">
+    <h3>Outlook / Microsoft 365</h3>
+    <p class="muted">Connects via Microsoft OAuth.</p>
+    <a href="/auth/microsoft?purpose=calendar" class="btn btn-primary">Connect Outlook &rarr;</a>
+  </div>
+
+  <!-- CalDAV -->
+  <div class="card">
+    <h3>CalDAV</h3>
+    <p class="muted">Apple iCloud, Fastmail, Nextcloud, or any CalDAV server.</p>
+    <details>
+      <summary class="btn btn-ghost">Add CalDAV account</summary>
+      <form method="POST" action="/setup/calendars/caldav" class="form" style="margin-top:16px;">
+        <div class="form-group">
+          <label>Display Name</label>
+          <input type="text" name="name" placeholder="iCloud" required>
+        </div>
+        <div class="form-group">
+          <label>Server URL</label>
+          <input type="text" name="server_url" placeholder="https://caldav.icloud.com" required>
+        </div>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" name="username" placeholder="user@icloud.com" required>
+        </div>
+        <div class="form-group">
+          <label>Password / App-specific password</label>
+          <input type="password" name="password" required>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" name="is_reminder"> Reminder calendar (always show in home timezone)</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </form>
+    </details>
+  </div>
+
+  <!-- ICS Feed -->
+  <div class="card">
+    <h3>ICS / iCal Feed</h3>
+    <p class="muted">Any public .ics URL — holidays, sports schedules, etc.</p>
+    <details>
+      <summary class="btn btn-ghost">Add ICS feed</summary>
+      <form method="POST" action="/setup/calendars/ics" class="form" style="margin-top:16px;">
+        <div class="form-group">
+          <label>Display Name</label>
+          <input type="text" name="name" placeholder="US Holidays" required>
+        </div>
+        <div class="form-group">
+          <label>ICS URL</label>
+          <input type="url" name="url" placeholder="https://..." required>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" name="is_reminder"> Reminder calendar</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </form>
+    </details>
+  </div>
+
+</div>
+
+<div class="form-actions" style="margin-top:24px;">
+  <a href="/setup/email" class="btn btn-ghost">Next: Email &rarr;</a>
+</div>
+
+<%- include('_foot') %>

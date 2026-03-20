@@ -1,0 +1,53 @@
+<%- include('_head', { title: 'API Keys' }) %>
+
+<h1>API Keys</h1>
+<p class="subtitle">Third-party services used to generate content.</p>
+
+<% if (flash.saved) { %><div class="alert alert-success">API keys saved.</div><% } %>
+
+<form method="POST" action="/setup/api-keys" class="form">
+
+  <div class="card">
+    <h3>Anthropic (Claude)</h3>
+    <p class="muted">Used to write blurbs for each event. Optional — events will appear without descriptions if omitted.</p>
+    <div class="form-group">
+      <label>API Key</label>
+      <input type="password" name="claude_api_key"
+        value="<%= config.claude_api_key ? '••••••••' : '' %>"
+        placeholder="sk-ant-..."
+        autocomplete="off">
+      <% if (config.claude_api_key) { %><p class="field-hint">Key is set. Enter a new value to replace it.</p><% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>html2pdf.app</h3>
+    <p class="muted">Used to generate the printable PDF attached to the email. Optional — email will send without PDF if omitted.</p>
+    <div class="form-group">
+      <label>API Key</label>
+      <input type="password" name="html2pdf_api_key"
+        value="<%= config.html2pdf_api_key ? '••••••••' : '' %>"
+        placeholder="your-key"
+        autocomplete="off">
+      <% if (config.html2pdf_api_key) { %><p class="field-hint">Key is set. Enter a new value to replace it.</p><% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Epson Connect (Optional)</h3>
+    <p class="muted">Auto-print the PDF to your Epson printer. Find this address in the Epson Connect app.</p>
+    <div class="form-group">
+      <label>Printer Email Address</label>
+      <input type="email" name="epson_connect_email"
+        value="<%= config.epson_connect_email || '' %>"
+        placeholder="xxxxxxxxxx@print.epsonconnect.com">
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="/setup/schedule" class="btn btn-ghost">Next: Schedule &rarr;</a>
+  </div>
+</form>
+
+<%- include('_foot') %>

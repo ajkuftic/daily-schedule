@@ -1,0 +1,52 @@
+<%- include('_head', { title: 'Family Setup' }) %>
+
+<h1>Family &amp; Location</h1>
+<p class="subtitle">Basic identity and default location for weather.</p>
+
+<% if (flash.saved) { %><div class="alert alert-success">Settings saved.</div><% } %>
+
+<form method="POST" action="/setup/family" class="form">
+  <div class="form-group">
+    <label>Family Name <span class="hint">(used in email subject and header)</span></label>
+    <input type="text" name="family_name" value="<%= config.family_name || '' %>" placeholder="Kuftic" required>
+  </div>
+
+  <div class="form-group">
+    <label>Send To <span class="hint">(email address for the daily newsletter)</span></label>
+    <input type="email" name="send_to" value="<%= config.send_to || '' %>" placeholder="family@example.com" required>
+  </div>
+
+  <div class="form-group">
+    <label>From Name <span class="hint">(leave blank to use "The Daily [Family Name]")</span></label>
+    <input type="text" name="from_name" value="<%= config.from_name || '' %>" placeholder="The Daily Kuftic">
+  </div>
+
+  <div class="form-group">
+    <label>Timezone <span class="hint">(IANA format)</span></label>
+    <input type="text" name="timezone" value="<%= config.timezone || 'America/New_York' %>" placeholder="America/New_York" required>
+    <p class="field-hint">Examples: America/New_York, Europe/London, America/Chicago</p>
+  </div>
+
+  <div class="form-group">
+    <label>Default City <span class="hint">(weather when no travel detected)</span></label>
+    <input type="text" name="default_city" value="<%= config.default_city || '' %>" placeholder="Pittsburgh, PA" required>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label>Latitude</label>
+      <input type="number" step="any" name="default_lat" value="<%= config.default_lat || '' %>" placeholder="40.4406" required>
+    </div>
+    <div class="form-group">
+      <label>Longitude</label>
+      <input type="number" step="any" name="default_lon" value="<%= config.default_lon || '' %>" placeholder="-79.9959" required>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="/setup/calendars" class="btn btn-ghost">Next: Calendars &rarr;</a>
+  </div>
+</form>
+
+<%- include('_foot') %>
