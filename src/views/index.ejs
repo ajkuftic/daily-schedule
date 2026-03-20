@@ -57,7 +57,7 @@
     <h3>Schedule</h3>
     <p>
       <% if (config.setup_complete) { %>
-        Daily at <strong><%= config.schedule_hour != null ? config.schedule_hour : 7 %>:00</strong>
+        Daily at <strong><span id="schedule-time" data-hour="<%= config.schedule_hour != null ? config.schedule_hour : 7 %>"><%= config.schedule_hour != null ? config.schedule_hour : 7 %>:00</span></strong>
         &nbsp;(<%= config.timezone || 'America/New_York' %>)
       <% } else { %>
         <span class="muted">Not scheduled</span>
@@ -76,10 +76,10 @@
       <tbody>
         <% for (const log of logs) { %>
           <tr>
-            <td><%= log.date %></td>
+            <td><span class="fmt-date" data-date="<%= log.date %>"><%= log.date %></span></td>
             <td><span class="badge badge-<%= log.status %>"><%= log.status %></span></td>
             <td class="muted"><%= log.details || '—' %></td>
-            <td class="muted"><%= log.sent_at %></td>
+            <td class="muted"><span class="fmt-ts" data-ts="<%= log.sent_at %>"><%= log.sent_at %></span></td>
           </tr>
         <% } %>
       </tbody>
@@ -88,6 +88,26 @@
 </div>
 
 <script>
+// Format newsletter date column: "2026-03-21" → "Sat, Mar 21"
+document.querySelectorAll('.fmt-date').forEach(el => {
+  const d = new Date(el.dataset.date + 'T12:00:00Z');
+  el.textContent = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+});
+
+// Format sent-at column: "2026-03-20 22:04:44" (UTC) → local "Mar 20, 10:04 PM"
+document.querySelectorAll('.fmt-ts').forEach(el => {
+  const d = new Date(el.dataset.ts.replace(' ', 'T') + 'Z');
+  el.textContent = d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+});
+
+// Format schedule hour: 21 → "9:00 PM"
+const schedEl = document.getElementById('schedule-time');
+if (schedEl) {
+  const h = parseInt(schedEl.dataset.hour, 10);
+  const d = new Date(); d.setHours(h, 0, 0, 0);
+  schedEl.textContent = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
 document.getElementById('sendNowBtn')?.addEventListener('click', async () => {
   const btn = document.getElementById('sendNowBtn');
   btn.disabled = true;
