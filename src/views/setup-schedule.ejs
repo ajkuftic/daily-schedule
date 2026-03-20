@@ -1,0 +1,29 @@
+<%- include('_head', { title: 'Schedule' }) %>
+
+<h1>Delivery Schedule</h1>
+<p class="subtitle">Choose when to send the daily newsletter each morning.</p>
+
+<% if (flash.saved) { %><div class="alert alert-success">Schedule saved. The newsletter will send daily at the chosen time.</div><% } %>
+
+<form method="POST" action="/setup/schedule" class="form">
+  <div class="card">
+    <div class="form-group">
+      <label>Send Time</label>
+      <select name="hour">
+        <% for (let h = 4; h <= 11; h++) { %>
+          <option value="<%= h %>" <%= (parseInt(config.schedule_hour ?? 7) === h ? 'selected' : '') %>>
+            <%= h %>:00 AM
+          </option>
+        <% } %>
+      </select>
+      <p class="field-hint">Times are in <%= config.timezone || 'America/New_York' %>. The newsletter covers the <em>following</em> day's events.</p>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save &amp; Activate</button>
+    <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
+  </div>
+</form>
+
+<%- include('_foot') %>

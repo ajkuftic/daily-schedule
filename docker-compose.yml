@@ -1,0 +1,12 @@
+services:
+  daily-schedule:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    environment:
+      - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
+      - DATA_DIR=/data
+      - PORT=3000
+    restart: unless-stopped

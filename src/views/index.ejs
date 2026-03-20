@@ -1,0 +1,103 @@
+<%- include('_head', { title: 'Dashboard' }) %>
+
+<div class="page-header">
+  <div>
+    <h1>Daily Schedule</h1>
+    <p class="subtitle">
+      <% if (config.family_name) { %>
+        <%= config.family_name %> Family &nbsp;&middot;&nbsp;
+      <% } %>
+      <% if (config.send_to) { %>
+        Sending to <strong><%= config.send_to %></strong>
+      <% } else { %>
+        <span class="warn">Not configured yet</span>
+      <% } %>
+    </p>
+  </div>
+  <% if (config.setup_complete) { %>
+    <button class="btn btn-primary" id="sendNowBtn">Send Now</button>
+  <% } %>
+</div>
+
+<% if (!config.setup_complete) { %>
+  <div class="alert alert-info">
+    <strong>Welcome!</strong> Complete setup to start sending your daily newsletter.
+    <a href="/setup/family">Begin setup &rarr;</a>
+  </div>
+<% } %>
+
+<div class="card-grid">
+  <div class="card">
+    <h3>Calendars</h3>
+    <% if (calendars.length === 0) { %>
+      <p class="muted">No calendars connected. <a href="/setup/calendars">Add one &rarr;</a></p>
+    <% } else { %>
+      <ul class="list">
+        <% for (const cal of calendars) { %>
+          <li><span class="badge badge-<%= cal.provider %>"><%= cal.provider %></span> <%= cal.name %></li>
+        <% } %>
+      </ul>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h3>Email</h3>
+    <% if (emailAccount) { %>
+      <p><span class="badge badge-<%= emailAccount.provider %>"><%= emailAccount.provider %></span>
+      <%= emailAccount.credentials && (emailAccount.credentials.email || emailAccount.credentials.user) || 'Configured' %></p>
+    <% } else { %>
+      <p class="muted">No email configured. <a href="/setup/email">Set up &rarr;</a></p>
+    <% } %>
+  </div>
+
+  <div class="card">
+    <h3>Schedule</h3>
+    <p>
+      <% if (config.setup_complete) { %>
+        Daily at <strong><%= config.schedule_hour != null ? config.schedule_hour : 7 %>:00</strong>
+        &nbsp;(<%= config.timezone || 'America/New_York' %>)
+      <% } else { %>
+        <span class="muted">Not scheduled</span>
+      <% } %>
+    </p>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Recent Sends</h3>
+  <% if (logs.length === 0) { %>
+    <p class="muted">No sends yet.</p>
+  <% } else { %>
+    <table class="table">
+      <thead><tr><th>Date</th><th>Status</th><th>Details</th><th>Sent At</th></tr></thead>
+      <tbody>
+        <% for (const log of logs) { %>
+          <tr>
+            <td><%= log.date %></td>
+            <td><span class="badge badge-<%= log.status %>"><%= log.status %></span></td>
+            <td class="muted"><%= log.details || '—' %></td>
+            <td class="muted"><%= log.sent_at %></td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<script>
+document.getElementById('sendNowBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('sendNowBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    const res  = await fetch('/api/send-now', { method: 'POST' });
+    const data = await res.json();
+    btn.textContent = data.ok ? 'Started!' : 'Error';
+  } catch {
+    btn.textContent = 'Error';
+  }
+  setTimeout(() => { btn.disabled = false; btn.textContent = 'Send Now'; }, 3000);
+});
+</script>
+
+<%- include('_foot') %>
