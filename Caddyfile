@@ -1,0 +1,3 @@
+{$DOMAIN} {
+	reverse_proxy daily-schedule:3000
+}
