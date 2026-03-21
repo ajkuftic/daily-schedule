@@ -37,13 +37,27 @@ body {
   text-decoration: none;
   letter-spacing: 0.04em;
 }
-.nav-links { display: flex; gap: 20px; }
+.nav-links { display: flex; align-items: center; gap: 20px; }
 .nav-links a {
   color: #b0bfd4;
   text-decoration: none;
   font-size: 14px;
 }
 .nav-links a:hover { color: #fff; }
+.nav-divider { width: 1px; height: 18px; background: rgba(255,255,255,0.15); }
+.nav-link-muted { color: #7a8fa8 !important; font-size: 13px !important; }
+.nav-link-muted:hover { color: #b0bfd4 !important; }
+.btn-nav-logout {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #b0bfd4;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.btn-nav-logout:hover { border-color: rgba(255,255,255,0.4); color: #fff; }
 
 /* ── MAIN ────────────────────────────────────── */
 .main {

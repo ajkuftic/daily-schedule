@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — Daily Schedule</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="main" style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;">
+
+<div style="width:100%;max-width:380px;">
+  <div style="text-align:center;margin-bottom:32px;">
+    <h1 style="margin:0 0 4px;">Daily Schedule</h1>
+    <p style="color:var(--muted);margin:0;">Sign in to continue</p>
+  </div>
+
+  <% if (flash.error) { %>
+    <div class="alert alert-error" style="margin-bottom:16px;"><%= flash.error %></div>
+  <% } %>
+
+  <div class="card" style="padding:28px;">
+    <form method="POST" action="/auth/login" class="form">
+      <% if (flash.return_to) { %>
+        <input type="hidden" name="return_to" value="<%= flash.return_to %>">
+      <% } %>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password"
+          autofocus autocomplete="current-password" required>
+      </div>
+      <div class="form-actions" style="margin-top:20px;">
+        <button type="submit" class="btn btn-primary" style="width:100%;">Sign in</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+</main>
+</body>
+</html>
