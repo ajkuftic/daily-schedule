@@ -1,52 +1,53 @@
-<%- include('_head', { title: 'Send Logs' }) %>
+<%- include('_head', { title: 'Logs' }) %>
 
 <div class="page-header">
   <div>
-    <h1>Send Logs</h1>
-    <p class="subtitle"><%= total %> total entr<%= total === 1 ? 'y' : 'ies' %></p>
+    <h1>Logs</h1>
   </div>
-  <div style="display:flex;gap:8px;align-items:center;">
-    <form method="POST" action="/logs/clear" onsubmit="return confirm('Clear all log entries?')">
-      <button type="submit" class="btn btn-ghost btn-sm">Clear logs</button>
-    </form>
-  </div>
+  <% if (tab === 'sends') { %>
+  <form method="POST" action="/logs/clear-sends" onsubmit="return confirm('Clear all send log entries?')">
+    <button type="submit" class="btn btn-ghost btn-sm">Clear send log</button>
+  </form>
+  <% } else { %>
+  <a href="/logs?tab=app" class="btn btn-ghost btn-sm" onclick="location.reload();return false;">Refresh</a>
+  <% } %>
 </div>
 
 <% if (flash.cleared) { %>
-  <div class="alert alert-success">Logs cleared.</div>
+  <div class="alert alert-success">Send log cleared.</div>
 <% } %>
 
-<!-- Filter bar -->
+<!-- Tabs -->
+<div class="tabs">
+  <a href="/logs?tab=sends" class="tab <%= tab === 'sends' ? 'tab-active' : '' %>">Send History</a>
+  <a href="/logs?tab=app"   class="tab <%= tab === 'app'   ? 'tab-active' : '' %>">Application Logs</a>
+</div>
+
+<!-- ── SEND HISTORY ──────────────────────────────────────────────────────── -->
+<% if (tab === 'sends') { %>
+
 <div class="log-filters">
-  <a href="/logs" class="btn btn-sm <%= !status ? 'btn-primary' : 'btn-ghost' %>">All</a>
-  <a href="/logs?status=success" class="btn btn-sm <%= status === 'success' ? 'btn-primary' : 'btn-ghost' %>">Success</a>
-  <a href="/logs?status=error" class="btn btn-sm <%= status === 'error' ? 'btn-primary' : 'btn-ghost' %>">Errors</a>
+  <a href="/logs?tab=sends" class="btn btn-sm <%= !status ? 'btn-primary' : 'btn-ghost' %>">All</a>
+  <a href="/logs?tab=sends&status=success" class="btn btn-sm <%= status === 'success' ? 'btn-primary' : 'btn-ghost' %>">Success</a>
+  <a href="/logs?tab=sends&status=error"   class="btn btn-sm <%= status === 'error'   ? 'btn-primary' : 'btn-ghost' %>">Errors</a>
+  <span class="muted" style="margin-left:4px;font-size:13px;"><%= sends.total %> entr<%= sends.total === 1 ? 'y' : 'ies' %></span>
 </div>
 
 <div class="card" style="padding:0;overflow:hidden;">
-  <% if (rows.length === 0) { %>
-    <p class="muted" style="padding:24px;">No log entries<% if (status) { %> with status "<%= status %>"<% } %>.</p>
+  <% if (sends.rows.length === 0) { %>
+    <p class="muted" style="padding:24px;">No entries<% if (status) { %> with status "<%= status %>"<% } %>.</p>
   <% } else { %>
     <table class="table">
       <thead>
-        <tr>
-          <th>Date</th>
-          <th>Status</th>
-          <th>Details</th>
-          <th style="white-space:nowrap;">Sent At</th>
-        </tr>
+        <tr><th>Date</th><th>Status</th><th>Details</th><th style="white-space:nowrap;">Sent At</th></tr>
       </thead>
       <tbody>
-        <% for (const log of rows) { %>
+        <% for (const log of sends.rows) { %>
           <tr>
-            <td style="white-space:nowrap;">
-              <span class="fmt-date" data-date="<%= log.date %>"><%= log.date %></span>
-            </td>
+            <td style="white-space:nowrap;"><span class="fmt-date" data-date="<%= log.date %>"><%= log.date %></span></td>
             <td><span class="badge badge-<%= log.status %>"><%= log.status %></span></td>
-            <td class="log-details"><%= log.details || '—' %></td>
-            <td style="white-space:nowrap;" class="muted">
-              <span class="fmt-ts" data-ts="<%= log.sent_at %>"><%= log.sent_at %></span>
-            </td>
+            <td class="log-detail-cell"><%= log.details || '—' %></td>
+            <td style="white-space:nowrap;" class="muted"><span class="fmt-ts" data-ts="<%= log.sent_at %>"><%= log.sent_at %></span></td>
           </tr>
         <% } %>
       </tbody>
@@ -54,17 +55,39 @@
   <% } %>
 </div>
 
-<!-- Pagination -->
-<% if (totalPages > 1) { %>
+<% if (sends.totalPages > 1) { %>
 <div class="pagination">
-  <% if (page > 1) { %>
-    <a href="/logs?page=<%= page - 1 %><%= status ? '&status=' + status : '' %>" class="btn btn-ghost btn-sm">&larr; Prev</a>
+  <% if (sends.page > 1) { %>
+    <a href="/logs?tab=sends&page=<%= sends.page - 1 %><%= status ? '&status=' + status : '' %>" class="btn btn-ghost btn-sm">&larr; Prev</a>
   <% } %>
-  <span class="muted">Page <%= page %> of <%= totalPages %></span>
-  <% if (page < totalPages) { %>
-    <a href="/logs?page=<%= page + 1 %><%= status ? '&status=' + status : '' %>" class="btn btn-ghost btn-sm">Next &rarr;</a>
+  <span class="muted">Page <%= sends.page %> of <%= sends.totalPages %></span>
+  <% if (sends.page < sends.totalPages) { %>
+    <a href="/logs?tab=sends&page=<%= sends.page + 1 %><%= status ? '&status=' + status : '' %>" class="btn btn-ghost btn-sm">Next &rarr;</a>
   <% } %>
 </div>
+<% } %>
+
+<% } %>
+
+<!-- ── APPLICATION LOGS ──────────────────────────────────────────────────── -->
+<% if (tab === 'app') { %>
+
+<% if (appLog.length === 0) { %>
+  <div class="card"><p class="muted">No application log entries yet. Logs appear here once the server writes to stdout/stderr.</p></div>
+<% } else { %>
+  <div class="app-log-wrap">
+    <pre class="app-log" id="appLog"><% for (const entry of appLog) { %><span class="ll-<%= entry.level %>"><% if (entry.ts) { %><span class="ll-ts"><%= entry.ts.replace('T',' ').replace(/\.\d+Z$/,' UTC') %></span> [<%= entry.level %>] <% } %><%= entry.message.replace(/</g,'&lt;').replace(/>/g,'&gt;') %></span>
+<% } %></pre>
+  </div>
+  <p class="muted" style="font-size:12px;margin-top:6px;">Showing last <%= appLog.length %> lines. Logs rotate at 5 MB.</p>
+<% } %>
+
+<script>
+// Auto-scroll to bottom on load
+const el = document.getElementById('appLog');
+if (el) el.scrollTop = el.scrollHeight;
+</script>
+
 <% } %>
 
 <script>
@@ -79,9 +102,25 @@ document.querySelectorAll('.fmt-ts').forEach(el => {
 </script>
 
 <style>
-.log-filters { display: flex; gap: 8px; margin-bottom: 16px; }
-.log-details { color: var(--text); font-size: 13px; max-width: 480px; word-break: break-word; }
-.pagination  { display: flex; align-items: center; gap: 12px; margin-top: 16px; justify-content: center; }
+.tabs          { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+.tab           { padding: 8px 16px; font-size: 14px; font-weight: 500; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab:hover     { color: var(--text); }
+.tab-active    { color: var(--navy); border-bottom-color: var(--navy); }
+
+.log-filters   { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+.log-detail-cell { font-size: 13px; max-width: 480px; word-break: break-word; }
+.pagination    { display: flex; align-items: center; gap: 12px; margin-top: 16px; justify-content: center; }
+
+.app-log-wrap  { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.app-log       {
+  margin: 0; padding: 16px; font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px; line-height: 1.6; background: #0f1117; color: #d4d4d8;
+  max-height: 70vh; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+}
+.ll-INFO  { color: #d4d4d8; }
+.ll-WARN  { color: #fbbf24; }
+.ll-ERROR { color: #f87171; }
+.ll-ts    { color: #6b7280; }
 </style>
 
 <%- include('_foot') %>
