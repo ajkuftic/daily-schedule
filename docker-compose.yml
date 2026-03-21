@@ -1,17 +1,52 @@
 services:
+
+  # ── App ──────────────────────────────────────────────────────────────────────
   daily-schedule:
     build: .
+    # Direct HTTP access on port 3000 (no TLS).
+    # Remove or comment this ports entry when using the https profile — Caddy
+    # will route traffic and the app does not need to be directly reachable.
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     volumes:
       - ./data:/data
     environment:
       - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
       - DATA_DIR=/data
       - PORT=3000
-      # Required if accessing via a private IP (10.x, 192.168.x, etc.) — Google OAuth
-      # does not allow private IPs as redirect URIs. Set this to a publicly reachable
-      # URL (e.g. via Cloudflare Tunnel or a reverse proxy) and register it in Google
-      # Cloud Console under Authorized redirect URIs.
-      #- GOOGLE_REDIRECT_URI=https://daily.example.com/auth/google/callback
+      # Optional: override the Google OAuth redirect URI base when the app is
+      # accessed via a private IP. Set to your public hostname, e.g.:
+      #   GOOGLE_REDIRECT_URI=https://daily.example.com/auth/google/callback
+      # Or configure it in the app's Google OAuth setup page (no env var needed).
     restart: unless-stopped
+
+  # ── HTTPS via Caddy + Let's Encrypt ──────────────────────────────────────────
+  # Enable with:  docker compose --profile https up -d
+  # Requires:
+  #   1. A domain (or subdomain) pointed at this machine's public IP
+  #   2. Ports 80 and 443 forwarded from your router to this machine
+  #   3. DOMAIN=daily.example.com set in a .env file or exported in your shell
+  #
+  # Caddy automatically obtains and renews a Let's Encrypt certificate.
+  # On first start it performs an HTTP-01 challenge on port 80 — both ports
+  # must be reachable from the internet for this to succeed.
+  caddy:
+    profiles: ["https"]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data       # cert storage — survives container restarts
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN:?Set DOMAIN in .env, e.g. DOMAIN=daily.example.com}
+    depends_on:
+      - daily-schedule
+
+volumes:
+  caddy_data:
+  caddy_config:

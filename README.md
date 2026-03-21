@@ -118,40 +118,38 @@ Enter a URL on the Webhooks page and the app will `POST` a JSON payload to it af
 }
 ```
 
+## HTTPS with Let's Encrypt
+
+The included `docker-compose.yml` has an optional `https` profile that adds a [Caddy](https://caddyserver.com/) reverse proxy. Caddy automatically provisions and renews a Let's Encrypt certificate — no manual cert management.
+
+**Requirements:**
+
+- A domain (or subdomain) with its DNS A record pointed at your server's public IP
+- Ports **80** and **443** forwarded from your router to the server
+
+**Steps:**
+
+```bash
+# 1. Add your domain to .env
+echo "DOMAIN=daily.example.com" >> .env
+
+# 2. Start with the https profile
+docker compose --profile https up -d
+```
+
+Caddy handles the HTTP-01 challenge on port 80, issues the cert, and redirects all HTTP traffic to HTTPS. The cert is stored in the `caddy_data` Docker volume and renewed automatically before it expires.
+
+After enabling HTTPS, update the **App URL** field in the Google OAuth setup page to `https://daily.example.com` so the OAuth redirect URI updates to match.
+
+> **Note:** If you only need HTTP (LAN / home network), skip the `https` profile entirely and access the app on port 3000.
+
 ## Deploying to a Server
 
 Any machine that can run Docker works. A few things to keep in mind:
 
-- **Reverse proxy**: Run Caddy or nginx in front of the app and terminate TLS there. Point it at `localhost:3000`.
 - **Session secret**: Set a strong `SESSION_SECRET` in your `.env` — the default `change-me` is not safe.
-- **Persistent data**: Make sure the `./data` volume mount points somewhere that survives container restarts and host reboots.
-- **Google OAuth redirect URI**: Update the authorised redirect URI in the Google Cloud Console to your real domain, e.g. `https://daily.example.com/auth/google/callback`.
-
-### Example: Caddy reverse proxy
-
-```
-daily.example.com {
-    reverse_proxy localhost:3000
-}
-```
-
-### Example: docker-compose.yml for a named volume
-
-```yaml
-services:
-  daily-schedule:
-    image: ghcr.io/ajkuftic/daily-schedule:latest
-    ports:
-      - "127.0.0.1:3000:3000"
-    volumes:
-      - data:/data
-    environment:
-      - SESSION_SECRET=${SESSION_SECRET}
-    restart: unless-stopped
-
-volumes:
-  data:
-```
+- **Persistent data**: Make sure the `./data` volume mount (or a named Docker volume) survives container restarts and host reboots.
+- **Google OAuth**: If using Google Calendar or Gmail, set the **App URL** on the Google OAuth setup page to your domain so the redirect URI stays in sync.
 
 ## Tech Stack
 
