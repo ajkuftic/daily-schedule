@@ -5,8 +5,8 @@ require('./logger'); // patch console early so all modules are captured
 
 const path    = require('path');
 const express = require('express');
-const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
+const session          = require('express-session');
+const BetterSqliteStore = require('./db/session-store');
 
 const setupRoutes   = require('./routes/setup');
 const authRoutes    = require('./routes/auth');
@@ -31,7 +31,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 app.use(session({
-  store:  new SQLiteStore({ dir: DATA_DIR, db: 'sessions.db' }),
+  store:  new BetterSqliteStore(require('./db/index').db),
   secret: process.env.SESSION_SECRET || 'change-me',
   resave: false,
   saveUninitialized: false,
