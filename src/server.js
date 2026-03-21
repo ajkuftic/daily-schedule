@@ -11,6 +11,7 @@ const setupRoutes   = require('./routes/setup');
 const authRoutes    = require('./routes/auth');
 const apiRoutes     = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
+const requireAuth   = require('./middleware/requireAuth');
 const { startScheduler } = require('./scheduler');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../data');
@@ -36,8 +37,15 @@ app.use(session({
 }));
 
 // ── ROUTES ────────────────────────────────────────────────────
+app.use('/auth',    authRoutes);           // login/logout before auth guard
+app.get('/login',  (req, res) => {
+  const qs = Object.keys(req.query).length ? '?' + new URLSearchParams(req.query).toString() : '';
+  res.redirect(`/auth/login${qs}`);
+});
+
+app.use(requireAuth);                      // everything below requires login
+
 app.use('/setup',   setupRoutes);
-app.use('/auth',    authRoutes);
 app.use('/api',     apiRoutes);
 app.use('/webhook', webhookRoutes);
 
