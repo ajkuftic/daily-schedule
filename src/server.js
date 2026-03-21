@@ -1,6 +1,7 @@
 'use strict';
 
 require('dotenv').config();
+require('./logger'); // patch console early so all modules are captured
 
 const path    = require('path');
 const express = require('express');
