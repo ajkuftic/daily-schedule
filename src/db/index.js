@@ -101,6 +101,19 @@ function getRecentLogs(limit = 30) {
   return db.prepare('SELECT * FROM send_log ORDER BY sent_at DESC LIMIT ?').all(limit);
 }
 
+function getLogs({ page = 1, perPage = 50, status = null } = {}) {
+  const offset = (page - 1) * perPage;
+  const where  = status ? 'WHERE status = ?' : '';
+  const args   = status ? [status, perPage, offset] : [perPage, offset];
+  const rows   = db.prepare(`SELECT * FROM send_log ${where} ORDER BY sent_at DESC LIMIT ? OFFSET ?`).all(...args);
+  const { total } = db.prepare(`SELECT COUNT(*) AS total FROM send_log ${where}`).get(...(status ? [status] : []));
+  return { rows, total, page, perPage, totalPages: Math.ceil(total / perPage) };
+}
+
+function clearLogs() {
+  db.prepare('DELETE FROM send_log').run();
+}
+
 // ── INTERNAL ──────────────────────────────────────────────────
 function parseJsonFields(row) {
   const out = { ...row };
@@ -126,4 +139,6 @@ module.exports = {
   updateEmailCredentials,
   logSend,
   getRecentLogs,
+  getLogs,
+  clearLogs,
 };
