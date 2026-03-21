@@ -1,6 +1,8 @@
-FROM node:22-alpine
+FROM node:22-slim
 
-RUN apk add --no-cache python3 make g++ sqlite
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 make g++ sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

@@ -84,14 +84,16 @@ async function callWithRetry(client, prompt) {
         console.error('[blurb] Non-retryable error:', err.message);
         return null;
       }
+      const cause = err.cause?.message || err.cause?.code || '';
       if (attempt < RETRIES) {
         const delay = 1000 * attempt; // 1 s, 2 s
-        console.warn(`[blurb] Connection error (attempt ${attempt}/${RETRIES}), retrying in ${delay}ms…`);
+        console.warn(`[blurb] Connection error (attempt ${attempt}/${RETRIES}), retrying in ${delay}ms…${cause ? ' cause: ' + cause : ''}`);
         await new Promise(r => setTimeout(r, delay));
       }
     }
   }
-  console.error(`[blurb] Failed after ${RETRIES} attempts:`, lastErr.message);
+  const cause = lastErr.cause?.message || lastErr.cause?.code || '';
+  console.error(`[blurb] Failed after ${RETRIES} attempts: ${lastErr.message}${cause ? ' — ' + cause : ''}`);
   return null;
 }
 
