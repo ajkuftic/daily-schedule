@@ -143,6 +143,34 @@ After enabling HTTPS, update the **App URL** field in the Google OAuth setup pag
 
 > **Note:** If you only need HTTP (LAN / home network), skip the `https` profile entirely and access the app on port 3000.
 
+### Already have a reverse proxy?
+
+If you're running this alongside other services that already have a reverse proxy (nginx, Traefik, another Caddy instance, etc.), **don't use the `https` profile** — your existing proxy is already bound to ports 80 and 443, and a second container trying to claim those ports will fail to start.
+
+Instead, skip the profile and point your existing proxy at the app on port 3000:
+
+```
+# Example: Caddyfile snippet for an existing Caddy instance
+daily.example.com {
+    reverse_proxy daily-schedule:3000
+}
+```
+
+The `daily-schedule` container and your proxy need to be on the same Docker network. If you're using a shared network (e.g. `proxy`), add it to the service in your compose file:
+
+```yaml
+services:
+  daily-schedule:
+    # ... existing config ...
+    networks:
+      - proxy      # your existing proxy network
+      - default
+
+networks:
+  proxy:
+    external: true
+```
+
 ## Deploying to a Server
 
 Any machine that can run Docker works. A few things to keep in mind:
