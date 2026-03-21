@@ -8,8 +8,7 @@
     "dev": "node --watch src/server.js"
   },
   "overrides": {
-    "node-gyp": "^12.0.0",
-    "sqlite3": "^6.0.0"
+    "node-gyp": "^12.0.0"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.0",
@@ -18,7 +17,6 @@
     "axios": "^1.7.9",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.7.0",
-    "connect-sqlite3": "^0.9.15",
     "dotenv": "^16.4.7",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
