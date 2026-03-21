@@ -9,4 +9,9 @@ services:
       - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
       - DATA_DIR=/data
       - PORT=3000
+      # Required if accessing via a private IP (10.x, 192.168.x, etc.) — Google OAuth
+      # does not allow private IPs as redirect URIs. Set this to a publicly reachable
+      # URL (e.g. via Cloudflare Tunnel or a reverse proxy) and register it in Google
+      # Cloud Console under Authorized redirect URIs.
+      #- GOOGLE_REDIRECT_URI=https://daily.example.com/auth/google/callback
     restart: unless-stopped

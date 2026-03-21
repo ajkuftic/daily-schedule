@@ -102,6 +102,20 @@
   <div class="step-number">4</div>
   <div class="step-body">
     <h3>Create OAuth credentials</h3>
+
+    <% if (isPrivateIp) { %>
+    <div class="callout callout-warn" style="margin-bottom:16px;">
+      <strong>Private IP detected — action needed before continuing.</strong>
+      Google does not allow private IP addresses (10.x, 192.168.x, 172.16–31.x) as redirect URIs.
+      <br><br>
+      Set your <strong>App URL</strong> in Step 5 below to a hostname-based address, then come back here.
+      For example, add <code><%= new URL(redirectUri).hostname %> daily.home</code> to your router's
+      DNS or your computer's <code>/etc/hosts</code> file, then enter
+      <code>http://daily.home:<%= new URL(redirectUri).port || 80 %></code> as the App URL.
+      The redirect URI shown here will update automatically.
+    </div>
+    <% } %>
+
     <ol>
       <li>Go to <strong><a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">APIs &amp; Services &rarr; Credentials</a></strong></li>
       <li>Click <strong>+ Create Credentials &rarr; OAuth client ID</strong></li>
@@ -140,6 +154,20 @@
         <% if (config.google_client_secret) { %>
           <p class="field-hint">Secret is set. Enter a new value to replace it.</p>
         <% } %>
+      </div>
+      <div class="form-group">
+        <label>App URL <span class="hint">(optional — only needed if accessing via a private IP)</span></label>
+        <input type="url" name="app_url"
+          value="<%= config.app_url || '' %>"
+          placeholder="http://daily.home:3000">
+        <p class="field-hint">
+          The URL you use to access this app from your browser.
+          If set, this is used as the base for the Google OAuth redirect URI instead of the auto-detected address.
+          Must use a hostname, not an IP address.
+          <% if (config.app_url) { %>
+            Current redirect URI: <code><%= config.app_url.replace(/\/$/, '') %>/auth/google/callback</code>
+          <% } %>
+        </p>
       </div>
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Save &amp; Done</button>
@@ -217,6 +245,11 @@
   font-size: 13px;
   color: #1e40af;
   line-height: 1.55;
+}
+.callout-warn {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #92400e;
 }
 </style>
 

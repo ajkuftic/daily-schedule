@@ -49,23 +49,34 @@ router.get('/', (req, res) => {
 });
 
 // ── GOOGLE OAUTH WALKTHROUGH ──────────────────────────────────
+function deriveRedirectUri(req, config) {
+  if (process.env.GOOGLE_REDIRECT_URI) return process.env.GOOGLE_REDIRECT_URI;
+  if (config.app_url) return `${config.app_url.replace(/\/$/, '')}/auth/google/callback`;
+  const host     = req.headers.host || `localhost:${process.env.PORT || 3000}`;
+  const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+  return `${protocol}://${host}/auth/google/callback`;
+}
+
 router.get('/google-oauth', (req, res) => {
-  const config     = db.getAllConfig();
-  const returnTo   = req.query.return_to || '/setup/calendars';
-  const host       = req.headers.host || `localhost:${process.env.PORT || 3000}`;
-  const protocol   = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-  const redirectUri = `${protocol}://${host}/auth/google/callback`;
-  res.render('setup-google-oauth', { config, returnTo, redirectUri, flash: req.query });
+  const config      = db.getAllConfig();
+  const returnTo    = req.query.return_to || '/setup/calendars';
+  const redirectUri = deriveRedirectUri(req, config);
+  const hostname    = new URL(redirectUri).hostname;
+  const isPrivateIp = /^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.)/.test(hostname);
+  res.render('setup-google-oauth', { config, returnTo, redirectUri, isPrivateIp, flash: req.query });
 });
 
 router.post('/google-oauth', (req, res) => {
   try {
-    const { google_client_id, google_client_secret, return_to } = req.body;
+    const { google_client_id, google_client_secret, app_url, return_to } = req.body;
     const returnTo = return_to || '/setup/calendars';
     if (google_client_id) db.setConfig('google_client_id', google_client_id);
     if (google_client_secret && !google_client_secret.startsWith('••')) {
       db.setConfig('google_client_secret', google_client_secret);
     }
+    // app_url: strip trailing slash; save empty string to clear
+    const normalizedUrl = (app_url || '').trim().replace(/\/$/, '');
+    db.setConfig('app_url', normalizedUrl);
     res.redirect(`/setup/google-oauth?saved=1&return_to=${encodeURIComponent(returnTo)}`);
   } catch (err) {
     errRedirect(res, '/setup/google-oauth', err);
