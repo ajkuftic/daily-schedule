@@ -15,10 +15,20 @@ function getGoogleCredentials(req) {
   const clientId     = process.env.GOOGLE_CLIENT_ID     || config.google_client_id;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || config.google_client_secret;
 
-  // Derive redirect URI from the incoming request so it works on any host/port
-  const host       = req.headers.host || `localhost:${process.env.PORT || 3000}`;
-  const protocol   = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${protocol}://${host}/auth/google/callback`;
+  // Redirect URI priority:
+  //   1. GOOGLE_REDIRECT_URI env var (explicit full override)
+  //   2. app_url DB config (set via setup UI) + /auth/google/callback
+  //   3. Auto-detect from request (works on any host/port, but blocked by Google for private IPs)
+  let redirectUri;
+  if (process.env.GOOGLE_REDIRECT_URI) {
+    redirectUri = process.env.GOOGLE_REDIRECT_URI;
+  } else if (config.app_url) {
+    redirectUri = `${config.app_url.replace(/\/$/, '')}/auth/google/callback`;
+  } else {
+    const host     = req.headers.host || `localhost:${process.env.PORT || 3000}`;
+    const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    redirectUri    = `${protocol}://${host}/auth/google/callback`;
+  }
 
   return { clientId, clientSecret, redirectUri };
 }
