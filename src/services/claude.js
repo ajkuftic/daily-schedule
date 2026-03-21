@@ -2,7 +2,7 @@
 
 const Anthropic = require('@anthropic-ai/sdk');
 
-const MODEL   = 'claude-3-5-haiku-20241022';
+const MODEL   = 'claude-haiku-4-5';
 const RETRIES = 3;
 const TIMEOUT = 30_000; // 30 s per attempt
 
