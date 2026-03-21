@@ -11,6 +11,7 @@ const setupRoutes   = require('./routes/setup');
 const authRoutes    = require('./routes/auth');
 const apiRoutes     = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
+const logsRoutes    = require('./routes/logs');
 const requireAuth   = require('./middleware/requireAuth');
 const { startScheduler } = require('./scheduler');
 
@@ -47,6 +48,7 @@ app.use(requireAuth);                      // everything below requires login
 
 app.use('/setup',   setupRoutes);
 app.use('/api',     apiRoutes);
+app.use('/logs',    logsRoutes);
 app.use('/webhook', webhookRoutes);
 
 // Root → dashboard

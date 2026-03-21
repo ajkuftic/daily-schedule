@@ -1,0 +1,87 @@
+<%- include('_head', { title: 'Send Logs' }) %>
+
+<div class="page-header">
+  <div>
+    <h1>Send Logs</h1>
+    <p class="subtitle"><%= total %> total entr<%= total === 1 ? 'y' : 'ies' %></p>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <form method="POST" action="/logs/clear" onsubmit="return confirm('Clear all log entries?')">
+      <button type="submit" class="btn btn-ghost btn-sm">Clear logs</button>
+    </form>
+  </div>
+</div>
+
+<% if (flash.cleared) { %>
+  <div class="alert alert-success">Logs cleared.</div>
+<% } %>
+
+<!-- Filter bar -->
+<div class="log-filters">
+  <a href="/logs" class="btn btn-sm <%= !status ? 'btn-primary' : 'btn-ghost' %>">All</a>
+  <a href="/logs?status=success" class="btn btn-sm <%= status === 'success' ? 'btn-primary' : 'btn-ghost' %>">Success</a>
+  <a href="/logs?status=error" class="btn btn-sm <%= status === 'error' ? 'btn-primary' : 'btn-ghost' %>">Errors</a>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden;">
+  <% if (rows.length === 0) { %>
+    <p class="muted" style="padding:24px;">No log entries<% if (status) { %> with status "<%= status %>"<% } %>.</p>
+  <% } else { %>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Details</th>
+          <th style="white-space:nowrap;">Sent At</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% for (const log of rows) { %>
+          <tr>
+            <td style="white-space:nowrap;">
+              <span class="fmt-date" data-date="<%= log.date %>"><%= log.date %></span>
+            </td>
+            <td><span class="badge badge-<%= log.status %>"><%= log.status %></span></td>
+            <td class="log-details"><%= log.details || '—' %></td>
+            <td style="white-space:nowrap;" class="muted">
+              <span class="fmt-ts" data-ts="<%= log.sent_at %>"><%= log.sent_at %></span>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<!-- Pagination -->
+<% if (totalPages > 1) { %>
+<div class="pagination">
+  <% if (page > 1) { %>
+    <a href="/logs?page=<%= page - 1 %><%= status ? '&status=' + status : '' %>" class="btn btn-ghost btn-sm">&larr; Prev</a>
+  <% } %>
+  <span class="muted">Page <%= page %> of <%= totalPages %></span>
+  <% if (page < totalPages) { %>
+    <a href="/logs?page=<%= page + 1 %><%= status ? '&status=' + status : '' %>" class="btn btn-ghost btn-sm">Next &rarr;</a>
+  <% } %>
+</div>
+<% } %>
+
+<script>
+document.querySelectorAll('.fmt-date').forEach(el => {
+  const d = new Date(el.dataset.date + 'T12:00:00Z');
+  el.textContent = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+});
+document.querySelectorAll('.fmt-ts').forEach(el => {
+  const d = new Date(el.dataset.ts.replace(' ', 'T') + 'Z');
+  el.textContent = d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+});
+</script>
+
+<style>
+.log-filters { display: flex; gap: 8px; margin-bottom: 16px; }
+.log-details { color: var(--text); font-size: 13px; max-width: 480px; word-break: break-word; }
+.pagination  { display: flex; align-items: center; gap: 12px; margin-top: 16px; justify-content: center; }
+</style>
+
+<%- include('_foot') %>
