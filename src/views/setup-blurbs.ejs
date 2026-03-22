@@ -1,0 +1,112 @@
+<%- include('_head', { title: 'Blurbs Setup' }) %>
+
+<div style="max-width:680px;">
+
+<div class="page-header">
+  <div>
+    <h1>AI Blurbs</h1>
+    <p class="subtitle">Claude generates a short description for each calendar event in the newsletter. Customize the instructions or disable it entirely.</p>
+  </div>
+</div>
+
+<% if (flash.saved) { %>
+  <div class="alert alert-success">Settings saved.</div>
+<% } %>
+<% if (flash.error) { %>
+  <div class="alert alert-error"><%= flash.error %></div>
+<% } %>
+
+<form method="POST" action="/setup/blurbs" class="form">
+
+  <div class="card" style="margin-bottom:24px;">
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="toggle-label">
+        <input type="checkbox" name="blurbs_enabled" id="blurbs_enabled"
+          <%= (config.blurbs_enabled === undefined || config.blurbs_enabled === '1') ? 'checked' : '' %>>
+        <span>Enable AI blurbs</span>
+      </label>
+      <p class="field-hint">When enabled, Claude adds a short blurb to each timed event in the newsletter. Requires a Claude API key.</p>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>Blurb instruction
+      <span class="hint">— what to write for each event</span>
+    </label>
+    <textarea name="blurb_instruction" id="blurb_instruction" rows="4"
+      placeholder="<%= DEFAULT_BLURB_INSTRUCTION %>"><%= config.blurb_instruction || DEFAULT_BLURB_INSTRUCTION %></textarea>
+    <p class="field-hint">
+      This is the instruction sent to Claude for each event. The event title, location, time, and date are always appended automatically.
+      <button type="button" class="btn btn-sm btn-ghost" onclick="resetInstruction()" style="margin-left:8px;">Reset to default</button>
+    </p>
+  </div>
+
+  <div class="card hint-card" style="margin-bottom:24px;">
+    <strong>Full prompt preview</strong> <span class="hint">(event details filled in at send time)</span>
+    <pre id="prompt-preview" style="margin-top:10px;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.5;"></pre>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="/setup" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>
+
+</div>
+
+<style>
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+}
+.toggle-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+}
+.hint-card {
+  background: var(--cream);
+}
+</style>
+
+<script>
+const DEFAULT = `<%= DEFAULT_BLURB_INSTRUCTION.replace(/`/g, '\\`') %>`;
+
+function resetInstruction() {
+  document.getElementById('blurb_instruction').value = DEFAULT;
+  updatePreview();
+}
+
+function updatePreview() {
+  const instruction = document.getElementById('blurb_instruction').value.trim() || DEFAULT;
+  const preview = `You are writing content for a family daily itinerary newsletter. `
+    + `For this event, write two things separated by the exact string '---TRAVEL---':\n\n`
+    + `1. ${instruction}\n\n`
+    + `2. ONLY if the previous location and current location are different and both are known: `
+    + `a single short travel duration — JUST the time estimate, nothing else. `
+    + `Examples: 'About 20 minutes', 'Allow 30 minutes', 'About 45 min by metro'. `
+    + `If no meaningful travel info applies, leave part 2 completely empty.\n\n`
+    + `Format your response as exactly:\n`
+    + `[blurb text]---TRAVEL---[duration only, or blank]\n\n`
+    + `Event: {event title}\n`
+    + `{Location or city context}\n`
+    + `Time: {start} – {end}\n`
+    + `Date: {date}`;
+  document.getElementById('prompt-preview').textContent = preview;
+}
+
+document.getElementById('blurb_instruction').addEventListener('input', updatePreview);
+updatePreview();
+</script>
+
+<%- include('_foot') %>

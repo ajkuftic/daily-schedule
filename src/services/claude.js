@@ -6,12 +6,22 @@ const MODEL   = 'claude-haiku-4-5';
 const RETRIES = 3;
 const TIMEOUT = 30_000; // 30 s per attempt
 
+const DEFAULT_BLURB_INSTRUCTION = `A 1-2 sentence blurb about the event itself. Friendly and warm, specific and helpful. Do NOT start with the event name. Do NOT use quotes. Under 40 words.`;
+
 async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
+  const db     = require('../db/index');
+  const config = db.getAllConfig();
+
+  if (config.blurbs_enabled === '0') {
+    console.log('[blurb] Disabled — skipping blurbs');
+    return;
+  }
   if (!apiKey) {
     console.log('[blurb] No API key — skipping blurbs');
     return;
   }
 
+  const blurbInstruction = (config.blurb_instruction || '').trim() || DEFAULT_BLURB_INSTRUCTION;
   const client = new Anthropic({ apiKey });
   const timedEvents = events.filter(e => !e.allDay);
 
@@ -36,8 +46,7 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
 
     const prompt = `You are writing content for a family daily itinerary newsletter. `
       + `For this event, write two things separated by the exact string '---TRAVEL---':\n\n`
-      + `1. A 1-2 sentence blurb about the event itself. Friendly and warm, specific and helpful. `
-      + `Do NOT start with the event name. Do NOT use quotes. Under 40 words.\n\n`
+      + `1. ${blurbInstruction}\n\n`
       + `2. ONLY if the previous location and current location are different and both are known: `
       + `a single short travel duration — JUST the time estimate, nothing else. `
       + `Examples: 'About 20 minutes', 'Allow 30 minutes', 'About 45 min by metro'. `
