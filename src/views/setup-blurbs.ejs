@@ -21,16 +21,18 @@
   <div class="card" style="margin-bottom:24px;display:flex;flex-direction:column;gap:16px;">
     <div class="form-group" style="margin-bottom:0;">
       <label class="toggle-label">
-        <input type="checkbox" name="blurbs_enabled" id="blurbs_enabled"
-          <%= (config.blurbs_enabled === undefined || config.blurbs_enabled === '1') ? 'checked' : '' %>>
+        <input type="hidden" name="blurbs_enabled" value="0">
+        <input type="checkbox" name="blurbs_enabled" id="blurbs_enabled" value="1"
+          <%= config.blurbs_enabled !== '0' ? 'checked' : '' %>>
         <span>Enable AI blurbs</span>
       </label>
       <p class="field-hint">When enabled, Claude adds a short blurb to each timed event in the newsletter. Requires a Claude API key.</p>
     </div>
     <div class="form-group" style="margin-bottom:0;">
       <label class="toggle-label">
-        <input type="checkbox" name="travel_enabled" id="travel_enabled"
-          <%= (config.travel_enabled === undefined || config.travel_enabled === '1') ? 'checked' : '' %>>
+        <input type="hidden" name="travel_enabled" value="0">
+        <input type="checkbox" name="travel_enabled" id="travel_enabled" value="1"
+          <%= config.travel_enabled !== '0' ? 'checked' : '' %>>
         <span>Include travel time estimates</span>
       </label>
       <p class="field-hint">When enabled, Claude estimates travel time between consecutive events at different locations.</p>
