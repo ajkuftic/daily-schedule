@@ -15,7 +15,8 @@ RUN mkdir -p /data
 
 ENV NODE_ENV=production \
     DATA_DIR=/data \
-    PORT=3000
+    PORT=3000 \
+    NODE_OPTIONS=--disable-warning=DEP0040
 
 EXPOSE 3000
 
