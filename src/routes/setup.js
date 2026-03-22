@@ -264,6 +264,27 @@ router.post('/schedule', (req, res) => {
   }
 });
 
+// ── BLURBS ────────────────────────────────────────────────────
+const DEFAULT_BLURB_INSTRUCTION = `A 1-2 sentence blurb about the event itself. Friendly and warm, specific and helpful. Do NOT start with the event name. Do NOT use quotes. Under 40 words.`;
+
+router.get('/blurbs', (req, res) => {
+  const config = db.getAllConfig();
+  res.render('setup-blurbs', { config, DEFAULT_BLURB_INSTRUCTION, flash: req.query });
+});
+
+router.post('/blurbs', (req, res) => {
+  try {
+    const { blurbs_enabled, travel_enabled, blurb_instruction } = req.body;
+    db.setConfig('blurbs_enabled',  blurbs_enabled  === 'on' ? '1' : '0');
+    db.setConfig('travel_enabled',  travel_enabled  === 'on' ? '1' : '0');
+    const instruction = (blurb_instruction || '').trim();
+    db.setConfig('blurb_instruction', instruction || DEFAULT_BLURB_INSTRUCTION);
+    res.redirect('/setup/blurbs?saved=1');
+  } catch (err) {
+    errRedirect(res, '/setup/blurbs', err);
+  }
+});
+
 // ── WEBHOOKS ──────────────────────────────────────────────────
 router.get('/webhooks', (req, res) => {
   // Auto-generate a secret on first visit
