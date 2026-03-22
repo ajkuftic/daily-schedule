@@ -73,15 +73,16 @@ async function fetchGoogleCalendarEvents({
         seen.add(key);
 
         allEvents.push({
-          title:    item.summary  || '(No title)',
-          start:    start.toISOString(),
-          end:      end.toISOString(),
-          timezone: eventTz || defaultTz,
-          rawDate:  isAllDay ? item.start.date : null,
-          location: item.location    || '',
-          notes:    item.description || '',
-          allDay:   isAllDay,
-          calendar: calendarNames[calId] || calId,
+          title:            item.summary  || '(No title)',
+          start:            start.toISOString(),
+          end:              end.toISOString(),
+          timezone:         eventTz || defaultTz,
+          rawDate:          isAllDay ? item.start.date : null,
+          location:         item.location    || '',
+          notes:            item.description || '',
+          allDay:           isAllDay,
+          calendar:         calendarNames[calId] || calId,
+          sourceCalendarId: calId,
         });
       }
     } catch (err) {

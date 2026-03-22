@@ -29,22 +29,28 @@
           <th>Include</th>
           <th>Calendar</th>
           <th>Reminder Calendar</th>
+          <th>AI Blurbs</th>
         </tr>
       </thead>
       <tbody>
         <% for (const cal of calendars) { %>
           <%
-            const isSelected = editMode ? currentIds.has(cal.id)         : cal.primary;
-            const isReminder = editMode ? currentReminderIds.has(cal.id) : false;
+            const isSelected = editMode ? currentIds.has(cal.id)                        : cal.primary;
+            const isReminder = editMode ? currentReminderIds.has(cal.id)                : false;
+            const blurbsOn   = editMode ? !currentBlurbsOffIds.has(cal.id)              : true;
           %>
           <tr>
-            <td><input type="checkbox" name="calendar_ids" value="<%= cal.id %>" <%= isSelected ? 'checked' : '' %>></td>
+            <td><input type="hidden" name="calendar_ids_off" value="<%= cal.id %>_off">
+                <input type="checkbox" name="calendar_ids" value="<%= cal.id %>" <%= isSelected ? 'checked' : '' %>></td>
             <td><%= cal.summary %> <% if (cal.primary) { %><span class="badge">primary</span><% } %></td>
             <td><input type="checkbox" name="reminder_ids" value="<%= cal.id %>" <%= isReminder ? 'checked' : '' %>></td>
+            <td><input type="hidden" name="blurbs_enabled_<%= cal.id %>" value="0">
+                <input type="checkbox" name="blurbs_enabled_<%= cal.id %>" value="1" <%= blurbsOn ? 'checked' : '' %>></td>
           </tr>
         <% } %>
       </tbody>
     </table>
+    <p class="field-hint" style="margin-top:8px;">AI Blurbs — uncheck to skip Claude-generated descriptions for events from that calendar.</p>
   </div>
 
   <div class="form-actions">
