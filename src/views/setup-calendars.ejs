@@ -3,7 +3,8 @@
 <h1>Calendar Sources</h1>
 <p class="subtitle">Add one or more calendar accounts to pull events from.</p>
 
-<% if (flash.saved === 'blurbs') { %><div class="alert alert-success">Blurbs setting updated.</div>
+<% if (flash.saved === 'blurbs')  { %><div class="alert alert-success">Blurbs setting updated.</div>
+<% } else if (flash.saved === 'edited') { %><div class="alert alert-success">Calendar updated.</div>
 <% } else if (flash.saved)    { %><div class="alert alert-success">Calendar added.</div><% } %>
 <% if (flash.deleted) { %><div class="alert alert-success">Calendar removed.</div><% } %>
 <% if (flash.error)   { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
@@ -16,7 +17,17 @@
       <tbody>
         <% for (const a of accounts) { %>
           <tr>
-            <td><%= a.name %></td>
+            <td>
+              <div><strong><%= a.name %></strong></div>
+              <% const calNames = a.metadata && a.metadata.calendarNames ? Object.values(a.metadata.calendarNames) : []; %>
+              <% if (calNames.length) { %>
+                <div class="hint" style="margin-top:3px;font-size:12px;"><%= calNames.join(', ') %></div>
+              <% } else if (a.provider === 'ics' && a.credentials && a.credentials.url) { %>
+                <div class="hint" style="margin-top:3px;font-size:12px;word-break:break-all;"><%= a.credentials.url %></div>
+              <% } else if (a.provider === 'caldav' && a.credentials && a.credentials.serverUrl) { %>
+                <div class="hint" style="margin-top:3px;font-size:12px;"><%= a.credentials.serverUrl %></div>
+              <% } %>
+            </td>
             <td><span class="badge badge-<%= a.provider %>"><%= a.provider %></span></td>
             <td><%= a.is_reminder ? 'Yes' : 'No' %></td>
             <td>
@@ -27,7 +38,8 @@
                   onchange="this.form.submit()">
               </form>
             </td>
-            <td>
+            <td style="white-space:nowrap;">
+              <a href="/setup/calendars/<%= a.id %>/edit" class="btn btn-sm btn-ghost">Edit</a>
               <form method="POST" action="/setup/calendars/delete/<%= a.id %>" style="display:inline;">
                 <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this calendar?')">Remove</button>
               </form>

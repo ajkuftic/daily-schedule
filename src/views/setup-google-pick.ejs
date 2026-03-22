@@ -1,9 +1,24 @@
-<%- include('_head', { title: 'Pick Calendars' }) %>
+<%- include('_head', { title: editMode ? 'Edit Google Calendar' : 'Pick Calendars' }) %>
 
-<h1>Pick Google Calendars</h1>
+<h1><%= editMode ? 'Edit Google Calendar' : 'Pick Google Calendars' %></h1>
 <p class="subtitle">Choose which calendars to include in your daily newsletter.</p>
 
-<form method="POST" action="/setup/calendars/google-pick" class="form">
+<% if (flash && flash.error) { %><div class="alert alert-error"><%= flash.error %></div><% } %>
+
+<form method="POST" action="<%= editMode ? `/setup/calendars/${account.id}/edit` : '/setup/calendars/google-pick' %>" class="form">
+
+  <% if (editMode) { %>
+  <div class="card" style="margin-bottom:24px;">
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Account label</label>
+      <input type="text" name="account_name" value="<%= account.name %>" placeholder="Google Calendar">
+      <p class="field-hint">A friendly name shown in the calendars list.</p>
+    </div>
+  </div>
+  <% } %>
+
+  <input type="hidden" name="calendars_json" value="<%= JSON.stringify(calendars) %>">
+
   <div class="card">
     <h3>Available Calendars</h3>
     <p class="muted">Check the calendars to include. Mark reminder calendars if their events should always display in your home timezone (e.g. recurring alarms).</p>
@@ -18,10 +33,14 @@
       </thead>
       <tbody>
         <% for (const cal of calendars) { %>
+          <%
+            const isSelected = editMode ? currentIds.has(cal.id)         : cal.primary;
+            const isReminder = editMode ? currentReminderIds.has(cal.id) : false;
+          %>
           <tr>
-            <td><input type="checkbox" name="calendar_ids" value="<%= cal.id %>" <%= cal.primary ? 'checked' : '' %>></td>
+            <td><input type="checkbox" name="calendar_ids" value="<%= cal.id %>" <%= isSelected ? 'checked' : '' %>></td>
             <td><%= cal.summary %> <% if (cal.primary) { %><span class="badge">primary</span><% } %></td>
-            <td><input type="checkbox" name="reminder_ids" value="<%= cal.id %>"></td>
+            <td><input type="checkbox" name="reminder_ids" value="<%= cal.id %>" <%= isReminder ? 'checked' : '' %>></td>
           </tr>
         <% } %>
       </tbody>
@@ -29,7 +48,7 @@
   </div>
 
   <div class="form-actions">
-    <button type="submit" class="btn btn-primary">Save &amp; Continue</button>
+    <button type="submit" class="btn btn-primary"><%= editMode ? 'Save Changes' : 'Save & Continue' %></button>
     <a href="/setup/calendars" class="btn btn-ghost">Cancel</a>
   </div>
 </form>

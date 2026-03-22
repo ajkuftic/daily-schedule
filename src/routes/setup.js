@@ -2,6 +2,7 @@
 
 const express    = require('express');
 const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 const db         = require('../db/index');
 const { reschedule } = require('../scheduler');
 
@@ -207,6 +208,69 @@ router.post('/calendars/google-pick', (req, res) => {
   delete req.session.pendingAccountId;
 
   res.redirect('/setup/calendars?saved=google');
+});
+
+// Edit calendar account — re-fetch calendar list and allow re-selection
+router.get('/calendars/:id/edit', async (req, res) => {
+  try {
+    const id      = parseInt(req.params.id, 10);
+    const account = db.getCalendarAccount(id);
+    if (!account) return res.redirect('/setup/calendars?error=Calendar+not+found');
+
+    if (account.provider === 'google') {
+      const config      = db.getAllConfig();
+      const clientId    = process.env.GOOGLE_CLIENT_ID     || config.google_client_id;
+      const clientSecret= process.env.GOOGLE_CLIENT_SECRET || config.google_client_secret;
+      const redirectUri = process.env.GOOGLE_REDIRECT_URI  || config.app_url
+        ? `${(config.app_url || '').replace(/\/$/, '')}/auth/google/callback`
+        : 'http://localhost:3000/auth/google/callback';
+      const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+      auth.setCredentials(account.credentials);
+      const cal     = google.calendar({ version: 'v3', auth });
+      const calList = await cal.calendarList.list();
+      const calendars = (calList.data.items || []).map(c => ({ id: c.id, summary: c.summary, primary: c.primary }));
+      const currentIds       = new Set(account.metadata?.calendarIds || []);
+      const currentReminderIds = new Set(account.metadata?.reminderCalendarIds || []);
+      return res.render('setup-google-pick', {
+        calendars, editMode: true, account, currentIds, currentReminderIds, flash: req.query,
+      });
+    }
+
+    // For CalDAV / ICS / Outlook: just allow renaming
+    res.render('setup-calendar-rename', { account, flash: req.query });
+  } catch (err) {
+    errRedirect(res, '/setup/calendars', err);
+  }
+});
+
+router.post('/calendars/:id/edit', (req, res) => {
+  try {
+    const id      = parseInt(req.params.id, 10);
+    const account = db.getCalendarAccount(id);
+    if (!account) return res.redirect('/setup/calendars?error=Calendar+not+found');
+
+    if (account.provider === 'google') {
+      const selected = [].concat(req.body.calendar_ids || []);
+      const reminder = [].concat(req.body.reminder_ids || []);
+      const allCals  = JSON.parse(req.body.calendars_json || '[]');
+      const calNames = {};
+      for (const c of allCals) calNames[c.id] = c.summary;
+      const newName  = (req.body.account_name || '').trim() || account.name;
+      db.upsertCalendarAccount({
+        ...account,
+        name:     newName,
+        metadata: { calendarIds: selected, reminderCalendarIds: reminder, calendarNames: calNames },
+      });
+      return res.redirect('/setup/calendars?saved=edited');
+    }
+
+    // Rename only for other providers
+    const newName = (req.body.account_name || '').trim() || account.name;
+    db.upsertCalendarAccount({ ...account, name: newName });
+    res.redirect('/setup/calendars?saved=edited');
+  } catch (err) {
+    errRedirect(res, '/setup/calendars', err);
+  }
 });
 
 // Toggle blurbs for a calendar
