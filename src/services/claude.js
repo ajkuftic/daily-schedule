@@ -24,11 +24,23 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
   const blurbInstruction = (config.blurb_instruction || '').trim() || DEFAULT_BLURB_INSTRUCTION;
   const client = new Anthropic({ apiKey });
 
-  // Build set of account IDs where blurbs are disabled
+  // Build per-account disabled-calendar sets
   const accounts = db.getCalendarAccounts();
-  const blurbsOffIds = new Set(accounts.filter(a => a.blurbs_enabled === 0).map(a => a.id));
+  // Account-level master switch
+  const accountBlurbsOff = new Set(accounts.filter(a => a.blurbs_enabled === 0).map(a => a.id));
+  // Per-calendar disabled sets: { accountId -> Set<calendarId> }
+  const calBlurbsOff = new Map(accounts.map(a => [
+    a.id,
+    new Set(a.metadata?.blurbsDisabledCalendarIds || []),
+  ]));
 
-  const timedEvents = events.filter(e => !e.allDay && !blurbsOffIds.has(e.calendarAccountId));
+  const timedEvents = events.filter(e => {
+    if (e.allDay) return false;
+    if (accountBlurbsOff.has(e.calendarAccountId)) return false;
+    const disabledCals = calBlurbsOff.get(e.calendarAccountId);
+    if (disabledCals && e.sourceCalendarId && disabledCals.has(e.sourceCalendarId)) return false;
+    return true;
+  });
 
   let baseLocation = city;
   for (const e of events) {

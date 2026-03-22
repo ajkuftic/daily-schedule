@@ -173,21 +173,42 @@ router.post('/calendars/ics', async (req, res) => {
   }
 });
 
+// Extract blurbs-disabled calendar IDs from form body.
+// Each calendar row posts `blurbs_enabled_<calId>` with hidden=0 + checkbox=1.
+function blurbsDisabledFromBody(body, allCals) {
+  return allCals
+    .filter(c => {
+      const val = [].concat(body[`blurbs_enabled_${c.id}`] || '0');
+      return !val.some(v => v === '1');
+    })
+    .map(c => c.id);
+}
+
 // Google calendar picker (after OAuth)
 router.get('/calendars/google-pick', (req, res) => {
   const pendingCals = req.session.pendingGoogleCalendars || [];
-  res.render('setup-google-pick', { calendars: pendingCals, flash: req.query });
+  res.render('setup-google-pick', {
+    calendars: pendingCals,
+    editMode: false,
+    account: null,
+    currentIds: new Set(),
+    currentReminderIds: new Set(),
+    currentBlurbsOffIds: new Set(),
+    flash: req.query,
+  });
 });
 
 router.post('/calendars/google-pick', (req, res) => {
   const credentials = req.session.pendingGoogleCreds;
   if (!credentials) return res.redirect('/setup/calendars?error=session-expired');
 
+  const allCals   = JSON.parse(req.body.calendars_json || '[]');
   const selected  = [].concat(req.body.calendar_ids || []);
   const reminder  = [].concat(req.body.reminder_ids || []);
   const calNames  = {};
   const pendingCals = req.session.pendingGoogleCalendars || [];
   for (const c of pendingCals) calNames[c.id] = c.summary;
+  const blurbsDisabled = blurbsDisabledFromBody(req.body, allCals.length ? allCals : pendingCals);
 
   const accountId = req.session.pendingAccountId;
   db.upsertCalendarAccount({
@@ -197,9 +218,10 @@ router.post('/calendars/google-pick', (req, res) => {
     is_reminder: false,
     credentials,
     metadata: {
-      calendarIds:         selected,
-      reminderCalendarIds: reminder,
-      calendarNames:       calNames,
+      calendarIds:              selected,
+      reminderCalendarIds:      reminder,
+      calendarNames:            calNames,
+      blurbsDisabledCalendarIds: blurbsDisabled,
     },
   });
 
@@ -229,10 +251,13 @@ router.get('/calendars/:id/edit', async (req, res) => {
       const cal     = google.calendar({ version: 'v3', auth });
       const calList = await cal.calendarList.list();
       const calendars = (calList.data.items || []).map(c => ({ id: c.id, summary: c.summary, primary: c.primary }));
-      const currentIds       = new Set(account.metadata?.calendarIds || []);
-      const currentReminderIds = new Set(account.metadata?.reminderCalendarIds || []);
+      const currentIds            = new Set(account.metadata?.calendarIds || []);
+      const currentReminderIds    = new Set(account.metadata?.reminderCalendarIds || []);
+      const currentBlurbsOffIds   = new Set(account.metadata?.blurbsDisabledCalendarIds || []);
       return res.render('setup-google-pick', {
-        calendars, editMode: true, account, currentIds, currentReminderIds, flash: req.query,
+        calendars, editMode: true, account,
+        currentIds, currentReminderIds, currentBlurbsOffIds,
+        flash: req.query,
       });
     }
 
@@ -255,11 +280,12 @@ router.post('/calendars/:id/edit', (req, res) => {
       const allCals  = JSON.parse(req.body.calendars_json || '[]');
       const calNames = {};
       for (const c of allCals) calNames[c.id] = c.summary;
+      const blurbsDisabled = blurbsDisabledFromBody(req.body, allCals);
       const newName  = (req.body.account_name || '').trim() || account.name;
       db.upsertCalendarAccount({
         ...account,
         name:     newName,
-        metadata: { calendarIds: selected, reminderCalendarIds: reminder, calendarNames: calNames },
+        metadata: { calendarIds: selected, reminderCalendarIds: reminder, calendarNames: calNames, blurbsDisabledCalendarIds: blurbsDisabled },
       });
       return res.redirect('/setup/calendars?saved=edited');
     }
