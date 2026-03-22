@@ -1,6 +1,6 @@
 <%- include('_head', { title: 'Blurbs Setup' }) %>
 
-<div style="max-width:680px;">
+<div style="max-width:900px;">
 
 <div class="page-header">
   <div>
@@ -41,7 +41,7 @@
     <label>Blurb instruction
       <span class="hint">— what to write for each event</span>
     </label>
-    <textarea name="blurb_instruction" id="blurb_instruction" rows="8"
+    <textarea name="blurb_instruction" id="blurb_instruction" rows="8" style="width:100%;box-sizing:border-box;"
       placeholder="<%= DEFAULT_BLURB_INSTRUCTION %>"><%= config.blurb_instruction || DEFAULT_BLURB_INSTRUCTION %></textarea>
     <p class="field-hint">
       This is the instruction sent to Claude for each event. The event title, location, time, and date are always appended automatically.
