@@ -3,7 +3,8 @@
 <h1>Calendar Sources</h1>
 <p class="subtitle">Add one or more calendar accounts to pull events from.</p>
 
-<% if (flash.saved)   { %><div class="alert alert-success">Calendar added.</div><% } %>
+<% if (flash.saved === 'blurbs') { %><div class="alert alert-success">Blurbs setting updated.</div>
+<% } else if (flash.saved)    { %><div class="alert alert-success">Calendar added.</div><% } %>
 <% if (flash.deleted) { %><div class="alert alert-success">Calendar removed.</div><% } %>
 <% if (flash.error)   { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
@@ -11,13 +12,21 @@
   <div class="card" style="margin-bottom:24px;">
     <h3>Connected Calendars</h3>
     <table class="table">
-      <thead><tr><th>Name</th><th>Provider</th><th>Reminder?</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>Provider</th><th>Reminder?</th><th>Blurbs</th><th></th></tr></thead>
       <tbody>
         <% for (const a of accounts) { %>
           <tr>
             <td><%= a.name %></td>
             <td><span class="badge badge-<%= a.provider %>"><%= a.provider %></span></td>
             <td><%= a.is_reminder ? 'Yes' : 'No' %></td>
+            <td>
+              <form method="POST" action="/setup/calendars/<%= a.id %>/blurbs" style="display:inline;">
+                <input type="hidden" name="blurbs_enabled" value="0">
+                <input type="checkbox" name="blurbs_enabled" value="1" title="Enable AI blurbs for this calendar"
+                  <%= a.blurbs_enabled !== 0 ? 'checked' : '' %>
+                  onchange="this.form.submit()">
+              </form>
+            </td>
             <td>
               <form method="POST" action="/setup/calendars/delete/<%= a.id %>" style="display:inline;">
                 <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this calendar?')">Remove</button>
@@ -27,6 +36,7 @@
         <% } %>
       </tbody>
     </table>
+    <p class="hint" style="margin-top:8px;">Blurbs column controls whether Claude generates event descriptions for each calendar. Requires AI Blurbs to be enabled globally in <a href="/setup/blurbs">AI Blurbs settings</a>.</p>
   </div>
 <% } %>
 

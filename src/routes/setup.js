@@ -209,6 +209,14 @@ router.post('/calendars/google-pick', (req, res) => {
   res.redirect('/setup/calendars?saved=google');
 });
 
+// Toggle blurbs for a calendar
+router.post('/calendars/:id/blurbs', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const enabled = [].concat(req.body.blurbs_enabled).some(x => x === 'on' || x === '1');
+  db.setCalendarBlurbs(id, enabled);
+  res.redirect('/setup/calendars?saved=blurbs');
+});
+
 // Delete calendar account
 router.post('/calendars/delete/:id', (req, res) => {
   db.deleteCalendarAccount(parseInt(req.params.id, 10));

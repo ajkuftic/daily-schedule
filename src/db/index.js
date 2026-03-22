@@ -17,6 +17,10 @@ db.pragma('foreign_keys = ON');
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 db.exec(schema);
 
+// Migrations — safe to run on every start (ALTER TABLE is a no-op if column exists)
+try { db.exec('ALTER TABLE calendar_accounts ADD COLUMN blurbs_enabled INTEGER DEFAULT 1'); } catch {}
+
+
 // ── CONFIG HELPERS ────────────────────────────────────────────
 function getConfig(key) {
   const row = db.prepare('SELECT value FROM config WHERE key = ?').get(key);
@@ -51,20 +55,27 @@ function getCalendarAccount(id) {
 }
 
 function upsertCalendarAccount(data) {
-  const { id, name, provider, is_reminder, credentials, metadata } = data;
+  const { id, name, provider, is_reminder, blurbs_enabled, credentials, metadata } = data;
   if (id) {
     db.prepare(`
       UPDATE calendar_accounts
-      SET name=?, provider=?, is_reminder=?, credentials=?, metadata=?, updated_at=CURRENT_TIMESTAMP
+      SET name=?, provider=?, is_reminder=?, blurbs_enabled=?, credentials=?, metadata=?,
+          updated_at=CURRENT_TIMESTAMP
       WHERE id=?
-    `).run(name, provider, is_reminder ? 1 : 0, JSON.stringify(credentials), JSON.stringify(metadata), id);
+    `).run(name, provider, is_reminder ? 1 : 0, blurbs_enabled == null ? 1 : (blurbs_enabled ? 1 : 0),
+      JSON.stringify(credentials), JSON.stringify(metadata), id);
     return id;
   }
   const result = db.prepare(`
-    INSERT INTO calendar_accounts (name, provider, is_reminder, credentials, metadata)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(name, provider, is_reminder ? 1 : 0, JSON.stringify(credentials), JSON.stringify(metadata));
+    INSERT INTO calendar_accounts (name, provider, is_reminder, blurbs_enabled, credentials, metadata)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(name, provider, is_reminder ? 1 : 0, 1, JSON.stringify(credentials), JSON.stringify(metadata));
   return result.lastInsertRowid;
+}
+
+function setCalendarBlurbs(id, enabled) {
+  db.prepare('UPDATE calendar_accounts SET blurbs_enabled=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+    .run(enabled ? 1 : 0, id);
 }
 
 function deleteCalendarAccount(id) {
@@ -133,6 +144,7 @@ module.exports = {
   getCalendarAccounts,
   getCalendarAccount,
   upsertCalendarAccount,
+  setCalendarBlurbs,
   deleteCalendarAccount,
   getEmailAccount,
   upsertEmailAccount,
