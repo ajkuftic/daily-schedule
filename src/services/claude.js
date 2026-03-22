@@ -44,13 +44,17 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
     const travelContext   = (event.location && prevLocation && event.location !== prevLocation)
       ? `\nPrevious location: ${prevLocation}` : '';
 
+    const travelInstruction = config.travel_enabled === '0'
+      ? `2. Leave this part completely empty.\n\n`
+      : `2. ONLY if the previous location and current location are different and both are known: `
+        + `a single short travel duration — JUST the time estimate, nothing else. `
+        + `Examples: 'About 20 minutes', 'Allow 30 minutes', 'About 45 min by metro'. `
+        + `If no meaningful travel info applies, leave part 2 completely empty.\n\n`;
+
     const prompt = `You are writing content for a family daily itinerary newsletter. `
       + `For this event, write two things separated by the exact string '---TRAVEL---':\n\n`
       + `1. ${blurbInstruction}\n\n`
-      + `2. ONLY if the previous location and current location are different and both are known: `
-      + `a single short travel duration — JUST the time estimate, nothing else. `
-      + `Examples: 'About 20 minutes', 'Allow 30 minutes', 'About 45 min by metro'. `
-      + `If no meaningful travel info applies, leave part 2 completely empty.\n\n`
+      + travelInstruction
       + `Format your response as exactly:\n`
       + `[blurb text]---TRAVEL---[duration only, or blank]\n\n`
       + `Event: ${event.title}\n`

@@ -274,8 +274,9 @@ router.get('/blurbs', (req, res) => {
 
 router.post('/blurbs', (req, res) => {
   try {
-    const { blurbs_enabled, blurb_instruction } = req.body;
-    db.setConfig('blurbs_enabled', blurbs_enabled === 'on' ? '1' : '0');
+    const { blurbs_enabled, travel_enabled, blurb_instruction } = req.body;
+    db.setConfig('blurbs_enabled',  blurbs_enabled  === 'on' ? '1' : '0');
+    db.setConfig('travel_enabled',  travel_enabled  === 'on' ? '1' : '0');
     const instruction = (blurb_instruction || '').trim();
     db.setConfig('blurb_instruction', instruction || DEFAULT_BLURB_INSTRUCTION);
     res.redirect('/setup/blurbs?saved=1');

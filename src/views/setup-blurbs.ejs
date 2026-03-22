@@ -18,7 +18,7 @@
 
 <form method="POST" action="/setup/blurbs" class="form">
 
-  <div class="card" style="margin-bottom:24px;">
+  <div class="card" style="margin-bottom:24px;display:flex;flex-direction:column;gap:16px;">
     <div class="form-group" style="margin-bottom:0;">
       <label class="toggle-label">
         <input type="checkbox" name="blurbs_enabled" id="blurbs_enabled"
@@ -26,6 +26,14 @@
         <span>Enable AI blurbs</span>
       </label>
       <p class="field-hint">When enabled, Claude adds a short blurb to each timed event in the newsletter. Requires a Claude API key.</p>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="toggle-label">
+        <input type="checkbox" name="travel_enabled" id="travel_enabled"
+          <%= (config.travel_enabled === undefined || config.travel_enabled === '1') ? 'checked' : '' %>>
+        <span>Include travel time estimates</span>
+      </label>
+      <p class="field-hint">When enabled, Claude estimates travel time between consecutive events at different locations.</p>
     </div>
   </div>
 
@@ -89,14 +97,19 @@ function resetInstruction() {
 
 function updatePreview() {
   const instruction = document.getElementById('blurb_instruction').value.trim() || DEFAULT;
-  const preview = `You are writing content for a family daily itinerary newsletter. `
+  const travelOn    = document.getElementById('travel_enabled').checked;
+  let preview = `You are writing content for a family daily itinerary newsletter. `
     + `For this event, write two things separated by the exact string '---TRAVEL---':\n\n`
-    + `1. ${instruction}\n\n`
-    + `2. ONLY if the previous location and current location are different and both are known: `
-    + `a single short travel duration — JUST the time estimate, nothing else. `
-    + `Examples: 'About 20 minutes', 'Allow 30 minutes', 'About 45 min by metro'. `
-    + `If no meaningful travel info applies, leave part 2 completely empty.\n\n`
-    + `Format your response as exactly:\n`
+    + `1. ${instruction}\n\n`;
+  if (travelOn) {
+    preview += `2. ONLY if the previous location and current location are different and both are known: `
+      + `a single short travel duration — JUST the time estimate, nothing else. `
+      + `Examples: 'About 20 minutes', 'Allow 30 minutes', 'About 45 min by metro'. `
+      + `If no meaningful travel info applies, leave part 2 completely empty.\n\n`;
+  } else {
+    preview += `2. Leave this part completely empty.\n\n`;
+  }
+  preview += `Format your response as exactly:\n`
     + `[blurb text]---TRAVEL---[duration only, or blank]\n\n`
     + `Event: {event title}\n`
     + `{Location or city context}\n`
@@ -106,6 +119,7 @@ function updatePreview() {
 }
 
 document.getElementById('blurb_instruction').addEventListener('input', updatePreview);
+document.getElementById('travel_enabled').addEventListener('change', updatePreview);
 updatePreview();
 </script>
 
