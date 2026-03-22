@@ -23,7 +23,12 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
 
   const blurbInstruction = (config.blurb_instruction || '').trim() || DEFAULT_BLURB_INSTRUCTION;
   const client = new Anthropic({ apiKey });
-  const timedEvents = events.filter(e => !e.allDay);
+
+  // Build set of account IDs where blurbs are disabled
+  const accounts = db.getCalendarAccounts();
+  const blurbsOffIds = new Set(accounts.filter(a => a.blurbs_enabled === 0).map(a => a.id));
+
+  const timedEvents = events.filter(e => !e.allDay && !blurbsOffIds.has(e.calendarAccountId));
 
   let baseLocation = city;
   for (const e of events) {

@@ -77,12 +77,12 @@ async function fetchAllEvents(accounts, dayStart, dayEnd, isoDate, defaultTz) {
 
       if (refreshed) credentialUpdates.push({ accountId: account.id, credentials: refreshed });
 
-      // Deduplicate and collect
+      // Tag events with their source account, then deduplicate and collect
       for (const e of events) {
         const key = `${e.title}|${e.start}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        allEvents.push(e);
+        allEvents.push({ ...e, calendarAccountId: account.id });
       }
     } catch (err) {
       console.error(`[calendar] Error fetching account ${account.id} (${account.provider}):`, err.message);

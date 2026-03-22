@@ -7,14 +7,15 @@ CREATE TABLE IF NOT EXISTS config (
 
 -- Calendar accounts (one row per connected calendar source)
 CREATE TABLE IF NOT EXISTS calendar_accounts (
-  id           INTEGER PRIMARY KEY AUTOINCREMENT,
-  name         TEXT NOT NULL,           -- user-friendly label, e.g. "Family"
-  provider     TEXT NOT NULL,           -- 'google' | 'caldav' | 'outlook' | 'ics'
-  is_reminder  INTEGER DEFAULT 0,       -- 1 = fixed-time reminders (never shift tz)
-  credentials  TEXT,                    -- JSON: OAuth tokens or DAV credentials
-  metadata     TEXT,                    -- JSON: calendar IDs to include, etc.
-  created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  name           TEXT NOT NULL,           -- user-friendly label, e.g. "Family"
+  provider       TEXT NOT NULL,           -- 'google' | 'caldav' | 'outlook' | 'ics'
+  is_reminder    INTEGER DEFAULT 0,       -- 1 = fixed-time reminders (never shift tz)
+  blurbs_enabled INTEGER DEFAULT 1,       -- 0 = skip AI blurbs for this calendar
+  credentials    TEXT,                    -- JSON: OAuth tokens or DAV credentials
+  metadata       TEXT,                    -- JSON: calendar IDs to include, etc.
+  created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Email account (at most one active sender)
