@@ -69,6 +69,15 @@ function buildPrintHTML({ dateStr, city, weather, clothingTip, events, familyNam
     + `<script src="https://cdn.jsdelivr.net/npm/twemoji@14/dist/twemoji.min.js" crossorigin="anonymous"></script>`
     + `<script>twemoji.parse(document.body, { folder: 'svg', ext: '.svg' });</script>`
 
+    + `<script>`
+    + `(function () {`
+    + `  /* Letter page at 96 dpi = 1056px; API margins top+bottom = 36+36 = 72px */`
+    + `  var PAGE_H = 984;`
+    + `  var h = document.documentElement.scrollHeight;`
+    + `  if (h > PAGE_H) { document.body.style.zoom = PAGE_H / h; }`
+    + `})();`
+    + `</script>`
+
     + `</body></html>`;
 }
 
