@@ -22,10 +22,19 @@ try { db.exec('ALTER TABLE calendar_accounts ADD COLUMN blurbs_enabled INTEGER D
 
 
 // ── CONFIG HELPERS ────────────────────────────────────────────
+// Only JSON-parse values that are objects or arrays — leave plain strings as-is.
+// This prevents '0'/'1' being parsed to numbers, which breaks strict === comparisons in templates.
+function tryParseConfig(str) {
+  if (typeof str === 'string' && (str.startsWith('{') || str.startsWith('['))) {
+    try { return JSON.parse(str); } catch {}
+  }
+  return str;
+}
+
 function getConfig(key) {
   const row = db.prepare('SELECT value FROM config WHERE key = ?').get(key);
   if (!row) return undefined;
-  try { return JSON.parse(row.value); } catch { return row.value; }
+  return tryParseConfig(row.value);
 }
 
 function setConfig(key, value) {
@@ -39,9 +48,7 @@ function setConfig(key, value) {
 
 function getAllConfig() {
   const rows = db.prepare('SELECT key, value FROM config').all();
-  return Object.fromEntries(rows.map(r => {
-    try { return [r.key, JSON.parse(r.value)]; } catch { return [r.key, r.value]; }
-  }));
+  return Object.fromEntries(rows.map(r => [r.key, tryParseConfig(r.value)]));
 }
 
 // ── CALENDAR ACCOUNT HELPERS ──────────────────────────────────
