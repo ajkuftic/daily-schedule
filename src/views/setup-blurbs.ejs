@@ -37,6 +37,15 @@
       </label>
       <p class="field-hint">When enabled, Claude estimates travel time between consecutive events at different locations.</p>
     </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="toggle-label">
+        <input type="hidden" name="blurbs_debug" value="0">
+        <input type="checkbox" name="blurbs_debug" id="blurbs_debug" value="1"
+          <%= config.blurbs_debug === '1' ? 'checked' : '' %>>
+        <span>Debug logging</span>
+      </label>
+      <p class="field-hint">Logs the full prompt and raw Claude response for each event. Useful for debugging travel time issues. Disable when done.</p>
+    </div>
   </div>
 
   <div class="form-group">

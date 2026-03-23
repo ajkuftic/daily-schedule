@@ -80,13 +80,25 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
       + `Date: ${dateStr}`
       + travelContext;
 
+    if (config.blurbs_debug === '1') {
+      console.log(`[blurb:debug] ── "${event.title}" ──\nPrompt:\n${prompt}`);
+    }
+
     const raw = await callWithRetry(client, prompt);
     if (!raw) continue;
+
+    if (config.blurbs_debug === '1') {
+      console.log(`[blurb:debug] Raw response: ${raw}`);
+    }
 
     const parts = raw.split('---TRAVEL---');
     event.generatedBlurb = parts[0].trim();
 
     const duration = (parts[1] || '').trim();
+
+    if (config.blurbs_debug === '1') {
+      console.log(`[blurb:debug] Blurb: "${event.generatedBlurb}" | Travel: "${duration || '(none)'}"`);
+    }
     if (duration) {
       event.travelDuration     = duration;
       event.travelFromLocation = prevLocation;
