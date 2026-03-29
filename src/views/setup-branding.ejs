@@ -1,0 +1,132 @@
+<%- include('_head', { title: 'Branding' }) %>
+
+<h1>Branding</h1>
+<p class="subtitle">Customize colors and logo for the email and PDF newsletter.</p>
+
+<% if (flash.saved)  { %><div class="alert alert-success">Branding saved.</div><% } %>
+<% if (flash.error)  { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
+
+<form method="POST" action="/setup/branding" class="form">
+
+  <div class="card">
+    <h3>Colors</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Primary Color</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="color" name="branding_primary_color"
+                 value="<%= config.branding_primary_color || '#1a2e4a' %>"
+                 style="width:48px;height:36px;padding:2px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+          <input type="text" name="branding_primary_color_hex" id="primary_hex"
+                 value="<%= config.branding_primary_color || '#1a2e4a' %>"
+                 placeholder="#1a2e4a" maxlength="7" autocomplete="off"
+                 style="max-width:110px;">
+        </div>
+        <p class="field-hint">Header background and text accents.</p>
+      </div>
+      <div class="form-group">
+        <label>Accent Color</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="color" name="branding_accent_color"
+                 value="<%= config.branding_accent_color || '#c9a96e' %>"
+                 style="width:48px;height:36px;padding:2px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;">
+          <input type="text" name="branding_accent_color_hex" id="accent_hex"
+                 value="<%= config.branding_accent_color || '#c9a96e' %>"
+                 placeholder="#c9a96e" maxlength="7" autocomplete="off"
+                 style="max-width:110px;">
+        </div>
+        <p class="field-hint">Rule lines, labels, and event borders.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;padding:16px;border:1px solid var(--border);border-radius:var(--radius);background:#fafafa;">
+      <p style="margin:0 0 10px;font-size:12px;font-weight:600;color:var(--navy);">Preview</p>
+      <div id="brand-preview" style="border-radius:6px;overflow:hidden;max-width:360px;">
+        <div id="preview-header" style="padding:16px 20px;text-align:center;">
+          <p id="preview-eyebrow" style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;"></p>
+          <p id="preview-title" style="margin:0;font-family:Georgia,serif;font-size:22px;font-weight:400;color:#fff;">The Daily Family</p>
+        </div>
+        <div id="preview-rule" style="height:4px;"></div>
+        <div style="background:#fff;padding:12px 20px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th id="preview-th1" style="padding:6px 8px;font-family:Arial,sans-serif;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;text-align:left;color:#fff;">Time</th>
+                <th id="preview-th2" style="padding:6px 8px;font-family:Arial,sans-serif;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;text-align:left;color:#fff;">Event</th>
+                <th id="preview-th3" style="padding:6px 8px;font-family:Arial,sans-serif;font-size:9px;letter-spacing:0.08em;text-transform:uppercase;text-align:left;color:#fff;">Location</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td id="preview-td-time" style="padding:8px 8px 8px 10px;border-left-width:3px;border-left-style:solid;font-size:10px;font-weight:bold;">9:00 AM</td>
+                <td style="padding:8px;font-size:11px;">Sample Event</td>
+                <td style="padding:8px;font-size:10px;color:#999;">Room 101</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Logo</h3>
+    <p class="muted">Optional. Appears above the title in the email and PDF. Use a publicly accessible image URL.</p>
+    <div class="form-group">
+      <label>Logo URL</label>
+      <input type="url" name="branding_logo_url"
+             value="<%= config.branding_logo_url || '' %>"
+             placeholder="https://example.com/logo.png"
+             autocomplete="off">
+      <p class="field-hint">Recommended: PNG or SVG, transparent background, max height ~80px.</p>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
+  </div>
+</form>
+
+<script>
+(function () {
+  const primaryPicker = document.querySelector('input[name="branding_primary_color"]');
+  const accentPicker  = document.querySelector('input[name="branding_accent_color"]');
+  const primaryHex    = document.getElementById('primary_hex');
+  const accentHex     = document.getElementById('accent_hex');
+
+  function isValidHex(v) { return /^#[0-9a-fA-F]{6}$/.test(v); }
+
+  function applyPreview(primary, accent) {
+    const p = isValidHex(primary) ? primary : '#1a2e4a';
+    const a = isValidHex(accent)  ? accent  : '#c9a96e';
+    document.getElementById('preview-header').style.backgroundColor = p;
+    document.getElementById('preview-rule').style.backgroundColor = a;
+    document.getElementById('preview-eyebrow').style.color = a;
+    document.getElementById('preview-eyebrow').textContent = document.querySelector('input[name="branding_primary_color"]').closest('form').querySelector('input[name="branding_primary_color_hex"]')?.value || '';
+    ['preview-th1','preview-th2','preview-th3'].forEach(id => {
+      document.getElementById(id).style.backgroundColor = p;
+    });
+    document.getElementById('preview-td-time').style.borderLeftColor = a;
+  }
+
+  function syncPickerToHex(picker, hex) {
+    picker.addEventListener('input', () => {
+      hex.value = picker.value;
+      applyPreview(primaryPicker.value, accentPicker.value);
+    });
+    hex.addEventListener('input', () => {
+      if (isValidHex(hex.value)) {
+        picker.value = hex.value;
+        applyPreview(primaryPicker.value, accentPicker.value);
+      }
+    });
+  }
+
+  syncPickerToHex(primaryPicker, primaryHex);
+  syncPickerToHex(accentPicker, accentHex);
+  applyPreview(primaryPicker.value, accentPicker.value);
+})();
+</script>
+
+<%- include('_foot') %>

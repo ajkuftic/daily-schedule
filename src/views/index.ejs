@@ -64,6 +64,22 @@
       <% } %>
     </p>
   </div>
+
+  <div class="card">
+    <h3>Branding</h3>
+    <%
+      const _primary = config.branding_primary_color || '#1a2e4a';
+      const _accent  = config.branding_accent_color  || '#c9a96e';
+    %>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <span style="display:inline-block;width:20px;height:20px;border-radius:4px;background:<%= _primary %>;border:1px solid rgba(0,0,0,0.1);"></span>
+      <span style="display:inline-block;width:20px;height:20px;border-radius:4px;background:<%= _accent %>;border:1px solid rgba(0,0,0,0.1);"></span>
+      <% if (config.branding_logo_url) { %>
+        <span class="muted" style="font-size:12px;">Logo set</span>
+      <% } %>
+    </div>
+    <p class="muted" style="font-size:12px;margin:0;"><a href="/setup/branding">Edit branding &rarr;</a></p>
+  </div>
 </div>
 
 <div class="card">

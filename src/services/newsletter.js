@@ -65,8 +65,14 @@ async function buildNewsletterContent(config) {
   const renderEvents = injectDepartureEvents(events);
 
   // ── Build HTML ────────────────────────────────────────────────
-  const emailHtml = buildEmailHTML({ dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName });
-  const printHtml = buildPrintHTML({ dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName });
+  const branding = {
+    primary_color: config.branding_primary_color || '',
+    accent_color:  config.branding_accent_color  || '',
+    logo_url:      config.branding_logo_url       || '',
+  };
+
+  const emailHtml = buildEmailHTML({ dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName, branding });
+  const printHtml = buildPrintHTML({ dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName, branding });
 
   return { emailHtml, printHtml, isoDate, dateStr, credentialUpdates };
 }

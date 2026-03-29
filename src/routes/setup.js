@@ -410,6 +410,27 @@ router.post('/blurbs', (req, res) => {
   }
 });
 
+// ── BRANDING ──────────────────────────────────────────────────
+router.get('/branding', (req, res) => {
+  const config = db.getAllConfig();
+  res.render('setup-branding', { config, flash: req.query });
+});
+
+router.post('/branding', (req, res) => {
+  try {
+    const { branding_primary_color_hex, branding_accent_color_hex, branding_logo_url } = req.body;
+    const hexRe = /^#[0-9a-fA-F]{6}$/;
+    if (branding_primary_color_hex && !hexRe.test(branding_primary_color_hex)) throw new Error('Primary color must be a valid hex code (e.g. #1a2e4a)');
+    if (branding_accent_color_hex  && !hexRe.test(branding_accent_color_hex))  throw new Error('Accent color must be a valid hex code (e.g. #c9a96e)');
+    db.setConfig('branding_primary_color', branding_primary_color_hex || '#1a2e4a');
+    db.setConfig('branding_accent_color',  branding_accent_color_hex  || '#c9a96e');
+    db.setConfig('branding_logo_url',      (branding_logo_url || '').trim());
+    res.redirect('/setup/branding?saved=1');
+  } catch (err) {
+    errRedirect(res, '/setup/branding', err);
+  }
+});
+
 // ── WEBHOOKS ──────────────────────────────────────────────────
 router.get('/webhooks', (req, res) => {
   // Auto-generate a secret on first visit
