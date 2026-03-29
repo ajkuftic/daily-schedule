@@ -1,10 +1,31 @@
 'use strict';
 
+const path       = require('path');
+const fs         = require('fs');
+const multer     = require('multer');
 const express    = require('express');
 const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
 const db         = require('../db/index');
 const { reschedule } = require('../scheduler');
+
+const DATA_DIR    = process.env.DATA_DIR || path.join(__dirname, '../../data');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+
+const logoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+    filename:    (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase() || '.png';
+      cb(null, `logo${ext}`);
+    },
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpeg|gif|svg\+xml|webp)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Logo must be an image file (PNG, JPG, GIF, SVG, WebP)'));
+  },
+});
 
 const router = express.Router();
 
@@ -416,7 +437,7 @@ router.get('/branding', (req, res) => {
   res.render('setup-branding', { config, flash: req.query });
 });
 
-router.post('/branding', (req, res) => {
+router.post('/branding', logoUpload.single('branding_logo_file'), (req, res) => {
   try {
     const { branding_primary_color_hex, branding_accent_color_hex, branding_logo_url } = req.body;
     const hexRe = /^#[0-9a-fA-F]{6}$/;
@@ -424,11 +445,28 @@ router.post('/branding', (req, res) => {
     if (branding_accent_color_hex  && !hexRe.test(branding_accent_color_hex))  throw new Error('Accent color must be a valid hex code (e.g. #c9a96e)');
     db.setConfig('branding_primary_color', branding_primary_color_hex || '#1a2e4a');
     db.setConfig('branding_accent_color',  branding_accent_color_hex  || '#c9a96e');
-    db.setConfig('branding_logo_url',      (branding_logo_url || '').trim());
+
+    // File upload takes priority over URL; if neither provided keep existing
+    if (req.file) {
+      db.setConfig('branding_logo_url', `/uploads/${req.file.filename}`);
+    } else if ((branding_logo_url || '').trim()) {
+      db.setConfig('branding_logo_url', branding_logo_url.trim());
+    }
+
     res.redirect('/setup/branding?saved=1');
   } catch (err) {
     errRedirect(res, '/setup/branding', err);
   }
+});
+
+router.post('/branding/remove-logo', (req, res) => {
+  const current = db.getConfig('branding_logo_url') || '';
+  if (current.startsWith('/uploads/')) {
+    const filePath = path.join(UPLOADS_DIR, path.basename(current));
+    fs.unlink(filePath, () => {});
+  }
+  db.setConfig('branding_logo_url', '');
+  res.redirect('/setup/branding?saved=1');
 });
 
 // ── WEBHOOKS ──────────────────────────────────────────────────

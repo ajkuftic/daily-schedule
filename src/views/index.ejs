@@ -15,9 +15,11 @@
     </p>
   </div>
   <% if (config.setup_complete) { %>
-    <div style="display:flex;gap:10px;">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <input type="date" id="previewDate" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:#fff;" title="Preview date (defaults to tomorrow)">
       <button class="btn btn-primary" id="sendNowBtn">Send Now</button>
-      <a href="/api/preview" target="_blank" class="btn btn-ghost" id="previewBtn">Preview</a>
+      <a href="#" target="_blank" class="btn btn-ghost" id="previewBtn">Preview</a>
+      <a href="#" target="_blank" class="btn btn-ghost" id="pdfPreviewBtn"><%= config.html2pdf_api_key ? 'Preview PDF' : 'Preview PDF (no key)' %></a>
     </div>
   <% } %>
 </div>
@@ -124,6 +126,32 @@ if (schedEl) {
   const d = new Date(); d.setHours(h, m, 0, 0);
   schedEl.textContent = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
+
+// Preview date picker — defaults to tomorrow
+(function () {
+  const dateInput = document.getElementById('previewDate');
+  if (!dateInput) return;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const iso = tomorrow.toISOString().substring(0, 10);
+  dateInput.value = iso;
+
+  function previewUrl(view) {
+    const date = dateInput.value || iso;
+    return `/api/preview?view=${view}&date=${date}`;
+  }
+
+  const previewBtn    = document.getElementById('previewBtn');
+  const pdfPreviewBtn = document.getElementById('pdfPreviewBtn');
+
+  function updateLinks() {
+    if (previewBtn)    previewBtn.href    = previewUrl('email');
+    if (pdfPreviewBtn) pdfPreviewBtn.href = previewUrl('pdf');
+  }
+
+  dateInput.addEventListener('change', updateLinks);
+  updateLinks();
+})();
 
 document.getElementById('sendNowBtn')?.addEventListener('click', async () => {
   const btn = document.getElementById('sendNowBtn');

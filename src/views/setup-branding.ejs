@@ -6,7 +6,7 @@
 <% if (flash.saved)  { %><div class="alert alert-success">Branding saved.</div><% } %>
 <% if (flash.error)  { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
-<form method="POST" action="/setup/branding" class="form">
+<form method="POST" action="/setup/branding" class="form" enctype="multipart/form-data">
 
   <div class="card">
     <h3>Colors</h3>
@@ -71,14 +71,34 @@
 
   <div class="card">
     <h3>Logo</h3>
-    <p class="muted">Optional. Appears above the title in the email and PDF. Use a publicly accessible image URL.</p>
+    <p class="muted">Optional. Appears above the title in the email and PDF.</p>
+
+    <% if (config.branding_logo_url) { %>
+      <div style="margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <img src="<%= config.branding_logo_url %>" alt="Current logo"
+             style="max-height:60px;max-width:200px;border:1px solid var(--border);border-radius:var(--radius);padding:8px;background:#fff;">
+        <div>
+          <p style="margin:0 0 6px;font-size:13px;color:var(--navy);">Current logo</p>
+          <form method="POST" action="/setup/branding/remove-logo" style="display:inline;">
+            <button type="submit" class="btn btn-ghost" style="font-size:12px;padding:4px 10px;">Remove</button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+
     <div class="form-group">
-      <label>Logo URL</label>
+      <label>Upload Logo</label>
+      <input type="file" name="branding_logo_file" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp">
+      <p class="field-hint">PNG, JPG, SVG, or WebP — max 2 MB. Replaces any existing logo.</p>
+    </div>
+
+    <div class="form-group">
+      <label>Or use a URL</label>
       <input type="url" name="branding_logo_url"
-             value="<%= config.branding_logo_url || '' %>"
+             value="<%= (config.branding_logo_url || '').startsWith('/uploads/') ? '' : (config.branding_logo_url || '') %>"
              placeholder="https://example.com/logo.png"
              autocomplete="off">
-      <p class="field-hint">Recommended: PNG or SVG, transparent background, max height ~80px.</p>
+      <p class="field-hint">Used if no file is uploaded. Must be publicly accessible for PDF generation.</p>
     </div>
   </div>
 
