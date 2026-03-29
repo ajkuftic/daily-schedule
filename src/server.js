@@ -16,8 +16,14 @@ const logsRoutes    = require('./routes/logs');
 const requireAuth   = require('./middleware/requireAuth');
 const { startScheduler } = require('./scheduler');
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../data');
-const PORT     = parseInt(process.env.PORT || '3000', 10);
+const fs = require('fs');
+
+const DATA_DIR    = process.env.DATA_DIR || path.join(__dirname, '../data');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+const PORT        = parseInt(process.env.PORT || '3000', 10);
+
+// Ensure uploads directory exists
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const app = express();
 
@@ -46,6 +52,9 @@ app.get('/login',  (req, res) => {
 });
 
 app.use(requireAuth);                      // everything below requires login
+
+// Serve uploaded logos (authenticated)
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 app.use('/setup',   setupRoutes);
 app.use('/api',     apiRoutes);

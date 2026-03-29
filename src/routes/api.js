@@ -58,12 +58,27 @@ router.post('/schedule', (req, res) => {
   res.json({ ok: true });
 });
 
-// GET /api/preview — render tomorrow's newsletter HTML in the browser (no send, no log)
+// GET /api/preview — render newsletter HTML/PDF in the browser (no send, no log)
+// ?view=email|print|pdf  ?date=YYYY-MM-DD
 router.get('/preview', async (req, res) => {
   try {
-    const config = db.getAllConfig();
-    const view   = req.query.view === 'print' ? 'print' : 'email';
-    const { emailHtml, printHtml } = await buildNewsletterContent(config);
+    const config     = db.getAllConfig();
+    const view       = ['print', 'pdf'].includes(req.query.view) ? req.query.view : 'email';
+    const targetDate = req.query.date || null;
+    const { emailHtml, printHtml } = await buildNewsletterContent(config, { targetDate });
+
+    if (view === 'pdf') {
+      const { generatePDF } = require('../services/pdf');
+      const familyName = config.family_name || 'Family';
+      const pdf = await generatePDF(printHtml, `Daily ${familyName} Preview`, config.html2pdf_api_key);
+      if (!pdf) {
+        return res.status(503).send('<pre style="font-family:monospace;padding:24px;">PDF generation requires an html2pdf API key.\nAdd it at /setup/api-keys</pre>');
+      }
+      res.set('Content-Type', 'application/pdf');
+      res.set('Content-Disposition', `inline; filename="${pdf.filename}"`);
+      return res.send(pdf.buffer);
+    }
+
     res.send(view === 'print' ? printHtml : emailHtml);
   } catch (err) {
     res.status(500).send(`<pre style="font-family:monospace;padding:24px;">Preview error:\n\n${err.message}\n\n${err.stack}</pre>`);

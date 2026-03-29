@@ -17,16 +17,21 @@ const db = require('../db/index');
  * @param {object} config   - result of db.getAllConfig()
  * @returns {Promise<{ emailHtml, printHtml, isoDate, dateStr, credentialUpdates }>}
  */
-async function buildNewsletterContent(config) {
+async function buildNewsletterContent(config, { targetDate } = {}) {
   const timezone   = config.timezone || 'America/New_York';
   const familyName = config.family_name || 'Family';
 
-  // ── Determine target date (tomorrow in the user's timezone) ──
-  const now       = new Date();
-  const todayStr  = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
-  const [y, m, d] = todayStr.split('-').map(Number);
-  const nextD     = new Date(Date.UTC(y, m - 1, d + 1));
-  const isoDate   = nextD.toISOString().substring(0, 10);
+  // ── Determine target date (tomorrow in the user's timezone, or override) ──
+  let isoDate;
+  if (targetDate && /^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+    isoDate = targetDate;
+  } else {
+    const now       = new Date();
+    const todayStr  = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
+    const [y, m, d] = todayStr.split('-').map(Number);
+    isoDate = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().substring(0, 10);
+  }
+  const nextD = new Date(`${isoDate}T12:00:00Z`);
   const dateStr   = new Intl.DateTimeFormat('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   }).format(nextD);
