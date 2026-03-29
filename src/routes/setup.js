@@ -351,9 +351,28 @@ router.get('/schedule', (req, res) => {
 
 router.post('/schedule', (req, res) => {
   try {
-    const { send_time } = req.body;
-    if (!send_time || !/^\d{1,2}:\d{2}$/.test(send_time)) throw new Error('A valid send time is required (HH:MM)');
-    const [hour, minute] = send_time.split(':').map(Number);
+    const raw = (req.body.send_time || '').trim();
+    if (!raw) throw new Error('A send time is required');
+
+    let hour, minute;
+
+    // "4:13 PM", "9 AM", "9:00am"
+    const ampm = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i);
+    if (ampm) {
+      hour   = parseInt(ampm[1], 10);
+      minute = ampm[2] ? parseInt(ampm[2], 10) : 0;
+      const pm = ampm[3].toLowerCase() === 'pm';
+      if (hour < 1 || hour > 12) throw new Error('Hour must be 1–12 when using AM/PM');
+      if (hour === 12) hour = pm ? 12 : 0;
+      else if (pm) hour += 12;
+    } else {
+      // "14:30", "9:00", "21"
+      const hhmm = raw.match(/^(\d{1,2})(?::(\d{2}))?$/);
+      if (!hhmm) throw new Error('Could not parse time — try "9:00 PM" or "21:00"');
+      hour   = parseInt(hhmm[1], 10);
+      minute = hhmm[2] ? parseInt(hhmm[2], 10) : 0;
+    }
+
     if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
       throw new Error('Invalid time value');
     }
