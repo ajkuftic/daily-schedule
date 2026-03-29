@@ -57,7 +57,7 @@
     <h3>Schedule</h3>
     <p>
       <% if (config.setup_complete) { %>
-        Daily at <strong><span id="schedule-time" data-hour="<%= config.schedule_hour != null ? config.schedule_hour : 7 %>"><%= config.schedule_hour != null ? config.schedule_hour : 7 %>:00</span></strong>
+        Daily at <strong><span id="schedule-time" data-hour="<%= config.schedule_hour != null ? config.schedule_hour : 7 %>" data-minute="<%= config.schedule_minute != null ? config.schedule_minute : 0 %>"><%= config.schedule_hour != null ? config.schedule_hour : 7 %>:00</span></strong>
         &nbsp;(<%= config.timezone || 'America/New_York' %>)
       <% } else { %>
         <span class="muted">Not scheduled</span>
@@ -100,11 +100,12 @@ document.querySelectorAll('.fmt-ts').forEach(el => {
   el.textContent = d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 });
 
-// Format schedule hour: 21 → "9:00 PM"
+// Format schedule time: hour=21 minute=13 → "9:13 PM"
 const schedEl = document.getElementById('schedule-time');
 if (schedEl) {
-  const h = parseInt(schedEl.dataset.hour, 10);
-  const d = new Date(); d.setHours(h, 0, 0, 0);
+  const h = parseInt(schedEl.dataset.hour,   10);
+  const m = parseInt(schedEl.dataset.minute, 10) || 0;
+  const d = new Date(); d.setHours(h, m, 0, 0);
   schedEl.textContent = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 

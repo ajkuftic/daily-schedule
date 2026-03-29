@@ -351,9 +351,14 @@ router.get('/schedule', (req, res) => {
 
 router.post('/schedule', (req, res) => {
   try {
-    const { hour } = req.body;
-    if (hour === undefined || isNaN(parseInt(hour, 10))) throw new Error('A send hour is required');
-    db.setConfig('schedule_hour', parseInt(hour, 10));
+    const { send_time } = req.body;
+    if (!send_time || !/^\d{1,2}:\d{2}$/.test(send_time)) throw new Error('A valid send time is required (HH:MM)');
+    const [hour, minute] = send_time.split(':').map(Number);
+    if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      throw new Error('Invalid time value');
+    }
+    db.setConfig('schedule_hour',   hour);
+    db.setConfig('schedule_minute', minute);
     db.setConfig('setup_complete', true);
     reschedule();
     res.redirect('/setup/schedule?saved=1');

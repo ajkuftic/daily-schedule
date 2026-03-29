@@ -10,16 +10,11 @@
   <div class="card">
     <div class="form-group">
       <label>Send Time</label>
-      <select name="hour">
-        <% for (let h = 0; h <= 23; h++) {
-             const period  = h < 12 ? 'AM' : 'PM';
-             const display = h === 0 ? '12' : h <= 12 ? String(h) : String(h - 12);
-        %>
-          <option value="<%= h %>" <%= (parseInt(config.schedule_hour ?? 7) === h ? 'selected' : '') %>>
-            <%= display %>:00 <%= period %>
-          </option>
-        <% } %>
-      </select>
+      <%
+        const _h = String(parseInt(config.schedule_hour ?? 7, 10)).padStart(2, '0');
+        const _m = String(parseInt(config.schedule_minute ?? 0, 10)).padStart(2, '0');
+      %>
+      <input type="time" name="send_time" value="<%= _h %>:<%= _m %>" required style="width:160px;font-size:15px;padding:8px 10px;">
       <p class="field-hint">Times are in <%= config.timezone || 'America/New_York' %>. The newsletter always covers <em>tomorrow's</em> events — sending at night gives you a preview before bed.</p>
     </div>
   </div>

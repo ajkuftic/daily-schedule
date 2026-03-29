@@ -21,7 +21,8 @@ function reschedule() {
   }
 
   const config   = db.getAllConfig();
-  const hour     = parseInt(config.schedule_hour ?? 7, 10);
+  const hour     = parseInt(config.schedule_hour   ?? 7, 10);
+  const minute   = parseInt(config.schedule_minute ?? 0, 10);
   const timezone = config.timezone || 'America/New_York';
 
   if (!config.setup_complete) {
@@ -29,8 +30,9 @@ function reschedule() {
     return;
   }
 
-  const expression = `0 ${hour} * * *`;
-  console.log(`[scheduler] Scheduling daily send at ${hour}:00 ${timezone} (cron: ${expression})`);
+  const expression = `${minute} ${hour} * * *`;
+  const timeStr    = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  console.log(`[scheduler] Scheduling daily send at ${timeStr} ${timezone} (cron: ${expression})`);
 
   currentTask = cron.schedule(expression, async () => {
     console.log('[scheduler] Triggered — sending daily newsletter...');
