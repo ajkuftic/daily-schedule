@@ -64,8 +64,6 @@ The app listens on port 3000 by default. Set `PORT` in your environment to chang
 | `PORT` | `3000` | HTTP port |
 | `DATA_DIR` | `./data` | Directory for SQLite databases |
 | `SESSION_SECRET` | `change-me` | Secret for signing session cookies — **change this in production** |
-| `GOOGLE_CLIENT_ID` | — | Google OAuth client ID (can also be set in the UI) |
-| `GOOGLE_CLIENT_SECRET` | — | Google OAuth client secret (can also be set in the UI) |
 
 All other settings (family name, calendars, email, schedule, API keys) are configured through the web UI and stored in the SQLite database.
 
@@ -74,8 +72,8 @@ All other settings (family name, calendars, email, schedule, API keys) are confi
 Navigate to `http://localhost:3000` and complete each step in the left nav:
 
 1. **Family** — family name, recipient email address, timezone, and default city for weather
-2. **Calendars** — add one or more calendar sources (Google, Outlook, iCloud, CalDAV, ICS)
-3. **Email** — configure how the newsletter is sent (Gmail OAuth or SMTP)
+2. **Calendars** — add one or more calendar sources (iCloud/CalDAV or any ICS feed URL)
+3. **Email** — configure SMTP to send the newsletter
 4. **API Keys** — Anthropic API key for AI blurbs (optional but recommended)
 5. **Schedule** — choose the daily send time
 6. **Google OAuth** — required only if you use Google Calendar or Gmail

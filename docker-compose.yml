@@ -14,10 +14,6 @@ services:
       - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
       - DATA_DIR=/data
       - PORT=3000
-      # Optional: override the Google OAuth redirect URI base when the app is
-      # accessed via a private IP. Set to your public hostname, e.g.:
-      #   GOOGLE_REDIRECT_URI=https://daily.example.com/auth/google/callback
-      # Or configure it in the app's Google OAuth setup page (no env var needed).
     restart: unless-stopped
 
   # ── HTTPS via Caddy + Let's Encrypt ──────────────────────────────────────────

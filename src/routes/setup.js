@@ -5,7 +5,6 @@ const fs         = require('fs');
 const multer     = require('multer');
 const express    = require('express');
 const nodemailer = require('nodemailer');
-const { google } = require('googleapis');
 const db         = require('../db/index');
 const { reschedule } = require('../scheduler');
 
@@ -68,41 +67,6 @@ router.get('/', (req, res) => {
   const calendars = db.getCalendarAccounts();
   const emailAccount = db.getEmailAccount();
   res.render('index', { config, logs, calendars, emailAccount, flash: req.query });
-});
-
-// ── GOOGLE OAUTH WALKTHROUGH ──────────────────────────────────
-function deriveRedirectUri(req, config) {
-  if (process.env.GOOGLE_REDIRECT_URI) return process.env.GOOGLE_REDIRECT_URI;
-  if (config.app_url) return `${config.app_url.replace(/\/$/, '')}/auth/google/callback`;
-  const host     = req.headers.host || `localhost:${process.env.PORT || 3000}`;
-  const protocol = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-  return `${protocol}://${host}/auth/google/callback`;
-}
-
-router.get('/google-oauth', (req, res) => {
-  const config      = db.getAllConfig();
-  const returnTo    = req.query.return_to || '/setup/calendars';
-  const redirectUri = deriveRedirectUri(req, config);
-  const hostname    = new URL(redirectUri).hostname;
-  const isPrivateIp = /^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|127\.)/.test(hostname);
-  res.render('setup-google-oauth', { config, returnTo, redirectUri, isPrivateIp, flash: req.query });
-});
-
-router.post('/google-oauth', (req, res) => {
-  try {
-    const { google_client_id, google_client_secret, app_url, return_to } = req.body;
-    const returnTo = return_to || '/setup/calendars';
-    if (google_client_id) db.setConfig('google_client_id', google_client_id);
-    if (google_client_secret && !google_client_secret.startsWith('••')) {
-      db.setConfig('google_client_secret', google_client_secret);
-    }
-    // app_url: strip trailing slash; save empty string to clear
-    const normalizedUrl = (app_url || '').trim().replace(/\/$/, '');
-    db.setConfig('app_url', normalizedUrl);
-    res.redirect(`/setup/google-oauth?saved=1&return_to=${encodeURIComponent(returnTo)}`);
-  } catch (err) {
-    errRedirect(res, '/setup/google-oauth', err);
-  }
 });
 
 // ── FAMILY / GENERAL SETTINGS ─────────────────────────────────
@@ -194,99 +158,20 @@ router.post('/calendars/ics', async (req, res) => {
   }
 });
 
-// Extract blurbs-disabled calendar IDs from form body.
-// Each calendar row posts `blurbs_enabled_<calId>` with hidden=0 + checkbox=1.
-function blurbsDisabledFromBody(body, allCals) {
-  return allCals
-    .filter(c => {
-      const val = [].concat(body[`blurbs_enabled_${c.id}`] || '0');
-      return !val.some(v => v === '1');
-    })
-    .map(c => c.id);
-}
-
-// Google calendar picker (after OAuth)
-router.get('/calendars/google-pick', (req, res) => {
-  const pendingCals = req.session.pendingGoogleCalendars || [];
-  res.render('setup-google-pick', {
-    calendars: pendingCals,
-    editMode: false,
-    account: null,
-    currentIds: new Set(),
-    currentReminderIds: new Set(),
-    currentBlurbsOffIds: new Set(),
-    flash: req.query,
-  });
+// Toggle blurbs for a calendar
+router.post('/calendars/:id/blurbs', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const enabled = [].concat(req.body.blurbs_enabled).some(x => x === 'on' || x === '1');
+  db.setCalendarBlurbs(id, enabled);
+  res.redirect('/setup/calendars?saved=blurbs');
 });
 
-router.post('/calendars/google-pick', (req, res) => {
-  const credentials = req.session.pendingGoogleCreds;
-  if (!credentials) return res.redirect('/setup/calendars?error=session-expired');
-
-  const allCals   = JSON.parse(req.body.calendars_json || '[]');
-  const selected  = [].concat(req.body.calendar_ids || []);
-  const reminder  = [].concat(req.body.reminder_ids || []);
-  const calNames  = {};
-  const pendingCals = req.session.pendingGoogleCalendars || [];
-  for (const c of pendingCals) calNames[c.id] = c.summary;
-  const blurbsDisabled = blurbsDisabledFromBody(req.body, allCals.length ? allCals : pendingCals);
-
-  const accountId = req.session.pendingAccountId;
-  db.upsertCalendarAccount({
-    id:          accountId ? parseInt(accountId, 10) : undefined,
-    name:        'Google Calendar',
-    provider:    'google',
-    is_reminder: false,
-    credentials,
-    metadata: {
-      calendarIds:              selected,
-      reminderCalendarIds:      reminder,
-      calendarNames:            calNames,
-      blurbsDisabledCalendarIds: blurbsDisabled,
-    },
-  });
-
-  delete req.session.pendingGoogleCreds;
-  delete req.session.pendingGoogleCalendars;
-  delete req.session.pendingAccountId;
-
-  res.redirect('/setup/calendars?saved=google');
-});
-
-// Edit calendar account — re-fetch calendar list and allow re-selection
-router.get('/calendars/:id/edit', async (req, res) => {
-  try {
-    const id      = parseInt(req.params.id, 10);
-    const account = db.getCalendarAccount(id);
-    if (!account) return res.redirect('/setup/calendars?error=Calendar+not+found');
-
-    if (account.provider === 'google') {
-      const config      = db.getAllConfig();
-      const clientId    = process.env.GOOGLE_CLIENT_ID     || config.google_client_id;
-      const clientSecret= process.env.GOOGLE_CLIENT_SECRET || config.google_client_secret;
-      const redirectUri = process.env.GOOGLE_REDIRECT_URI  || config.app_url
-        ? `${(config.app_url || '').replace(/\/$/, '')}/auth/google/callback`
-        : 'http://localhost:3000/auth/google/callback';
-      const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-      auth.setCredentials(account.credentials);
-      const cal     = google.calendar({ version: 'v3', auth });
-      const calList = await cal.calendarList.list();
-      const calendars = (calList.data.items || []).map(c => ({ id: c.id, summary: c.summary, primary: c.primary }));
-      const currentIds            = new Set(account.metadata?.calendarIds || []);
-      const currentReminderIds    = new Set(account.metadata?.reminderCalendarIds || []);
-      const currentBlurbsOffIds   = new Set(account.metadata?.blurbsDisabledCalendarIds || []);
-      return res.render('setup-google-pick', {
-        calendars, editMode: true, account,
-        currentIds, currentReminderIds, currentBlurbsOffIds,
-        flash: req.query,
-      });
-    }
-
-    // For CalDAV / ICS / Outlook: just allow renaming
-    res.render('setup-calendar-rename', { account, flash: req.query });
-  } catch (err) {
-    errRedirect(res, '/setup/calendars', err);
-  }
+// Edit calendar account — rename
+router.get('/calendars/:id/edit', (req, res) => {
+  const id      = parseInt(req.params.id, 10);
+  const account = db.getCalendarAccount(id);
+  if (!account) return res.redirect('/setup/calendars?error=Calendar+not+found');
+  res.render('setup-calendar-rename', { account, flash: req.query });
 });
 
 router.post('/calendars/:id/edit', (req, res) => {
@@ -294,38 +179,12 @@ router.post('/calendars/:id/edit', (req, res) => {
     const id      = parseInt(req.params.id, 10);
     const account = db.getCalendarAccount(id);
     if (!account) return res.redirect('/setup/calendars?error=Calendar+not+found');
-
-    if (account.provider === 'google') {
-      const selected = [].concat(req.body.calendar_ids || []);
-      const reminder = [].concat(req.body.reminder_ids || []);
-      const allCals  = JSON.parse(req.body.calendars_json || '[]');
-      const calNames = {};
-      for (const c of allCals) calNames[c.id] = c.summary;
-      const blurbsDisabled = blurbsDisabledFromBody(req.body, allCals);
-      const newName  = (req.body.account_name || '').trim() || account.name;
-      db.upsertCalendarAccount({
-        ...account,
-        name:     newName,
-        metadata: { calendarIds: selected, reminderCalendarIds: reminder, calendarNames: calNames, blurbsDisabledCalendarIds: blurbsDisabled },
-      });
-      return res.redirect('/setup/calendars?saved=edited');
-    }
-
-    // Rename only for other providers
     const newName = (req.body.account_name || '').trim() || account.name;
     db.upsertCalendarAccount({ ...account, name: newName });
     res.redirect('/setup/calendars?saved=edited');
   } catch (err) {
     errRedirect(res, '/setup/calendars', err);
   }
-});
-
-// Toggle blurbs for a calendar
-router.post('/calendars/:id/blurbs', (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  const enabled = [].concat(req.body.blurbs_enabled).some(x => x === 'on' || x === '1');
-  db.setCalendarBlurbs(id, enabled);
-  res.redirect('/setup/calendars?saved=blurbs');
 });
 
 // Delete calendar account
