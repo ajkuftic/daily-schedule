@@ -19,10 +19,7 @@
           <tr>
             <td>
               <div><strong><%= a.name %></strong></div>
-              <% const calNames = a.metadata && a.metadata.calendarNames ? Object.values(a.metadata.calendarNames) : []; %>
-              <% if (calNames.length) { %>
-                <div class="hint" style="margin-top:3px;font-size:12px;"><%= calNames.join(', ') %></div>
-              <% } else if (a.provider === 'ics' && a.credentials && a.credentials.url) { %>
+              <% if (a.provider === 'ics' && a.credentials && a.credentials.url) { %>
                 <div class="hint" style="margin-top:3px;font-size:12px;word-break:break-all;"><%= a.credentials.url %></div>
               <% } else if (a.provider === 'caldav' && a.credentials && a.credentials.serverUrl) { %>
                 <div class="hint" style="margin-top:3px;font-size:12px;"><%= a.credentials.serverUrl %></div>
@@ -53,23 +50,6 @@
 <% } %>
 
 <div class="provider-grid">
-
-  <!-- Google Calendar -->
-  <div class="card">
-    <h3>Google Calendar</h3>
-    <p class="muted">Connects via OAuth. You'll pick which calendars to include after connecting.</p>
-    <a href="/auth/google?purpose=calendar" class="btn btn-primary">Connect Google &rarr;</a>
-    <p style="margin:10px 0 0;font-size:13px;">
-      First time? <a href="/setup/google-oauth?return_to=/setup/calendars">Set up Google OAuth &rarr;</a>
-    </p>
-  </div>
-
-  <!-- Outlook / Microsoft -->
-  <div class="card">
-    <h3>Outlook / Microsoft 365</h3>
-    <p class="muted">Connects via Microsoft OAuth.</p>
-    <a href="/auth/microsoft?purpose=calendar" class="btn btn-primary">Connect Outlook &rarr;</a>
-  </div>
 
   <!-- CalDAV -->
   <div class="card">
@@ -105,7 +85,7 @@
   <!-- ICS Feed -->
   <div class="card">
     <h3>ICS / iCal Feed</h3>
-    <p class="muted">Any public .ics URL — holidays, sports schedules, etc.</p>
+    <p class="muted">Any public .ics URL — holidays, sports schedules, Google Calendar share links, etc.</p>
     <details>
       <summary class="btn btn-ghost">Add ICS feed</summary>
       <form method="POST" action="/setup/calendars/ics" class="form" style="margin-top:16px;">

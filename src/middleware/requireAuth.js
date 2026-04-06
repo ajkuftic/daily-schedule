@@ -9,10 +9,6 @@ module.exports = function requireAuth(req, res, next) {
   // Incoming webhooks authenticate via their secret in the URL — skip auth
   if (req.path.startsWith('/webhook/')) return next();
 
-  // OAuth callbacks must be reachable during the OAuth flow (user is already authed
-  // in their browser tab when they started the flow)
-  if (req.path.startsWith('/auth/google/') || req.path.startsWith('/auth/microsoft/')) return next();
-
   // Public pages
   if (PUBLIC_PATHS.some(p => req.path === p || req.path.startsWith(p + '?'))) return next();
 

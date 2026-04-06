@@ -1,9 +1,7 @@
 'use strict';
 
-const { fetchGoogleCalendarEvents } = require('./google');
-const { fetchCalDAVEvents }         = require('./caldav');
-const { fetchOutlookCalendarEvents } = require('./outlook');
-const { fetchICSEvents }            = require('./ics');
+const { fetchCalDAVEvents } = require('./caldav');
+const { fetchICSEvents }    = require('./ics');
 
 /**
  * Fetch and normalize events from all configured calendar accounts.
@@ -17,48 +15,20 @@ const { fetchICSEvents }            = require('./ics');
  */
 async function fetchAllEvents(accounts, dayStart, dayEnd, isoDate, defaultTz) {
   const allEvents = [];
-  const credentialUpdates = []; // [{ accountId, credentials }] — refreshed tokens to persist
+  const credentialUpdates = []; // kept for API compatibility — always empty now
   const seen = new Set();
 
   for (const account of accounts) {
     try {
       let events = [];
-      let refreshed = null;
 
       switch (account.provider) {
-        case 'google': {
-          const calIds  = account.metadata?.calendarIds || [];
-          const remIds  = account.metadata?.reminderCalendarIds || [];
-          const calNames = account.metadata?.calendarNames || {};
-          const result  = await fetchGoogleCalendarEvents({
-            credentials:          account.credentials,
-            calendarIds:          calIds,
-            reminderCalendarIds:  remIds,
-            calendarNames:        calNames,
-            dayStart, dayEnd, isoDate, defaultTz,
-          });
-          events    = result.events;
-          refreshed = result.refreshedCredentials;
-          break;
-        }
-
         case 'caldav': {
           events = await fetchCalDAVEvents({
             credentials: account.credentials,
             metadata:    account.metadata,
             dayStart, dayEnd, isoDate, defaultTz,
           });
-          break;
-        }
-
-        case 'outlook': {
-          const result = await fetchOutlookCalendarEvents({
-            credentials: account.credentials,
-            metadata:    account.metadata,
-            dayStart, dayEnd, isoDate, defaultTz,
-          });
-          events    = result.events;
-          refreshed = result.refreshedCredentials;
           break;
         }
 
@@ -74,8 +44,6 @@ async function fetchAllEvents(accounts, dayStart, dayEnd, isoDate, defaultTz) {
         default:
           console.warn(`[calendar] Unknown provider: ${account.provider}`);
       }
-
-      if (refreshed) credentialUpdates.push({ accountId: account.id, credentials: refreshed });
 
       // Tag events with their source account, then deduplicate and collect
       for (const e of events) {

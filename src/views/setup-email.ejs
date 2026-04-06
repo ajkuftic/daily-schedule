@@ -1,7 +1,7 @@
 <%- include('_head', { title: 'Email Setup' }) %>
 
 <h1>Email Sender</h1>
-<p class="subtitle">Choose how to send the daily newsletter.</p>
+<p class="subtitle">Configure SMTP to send the daily newsletter.</p>
 
 <% if (flash.saved)   { %><div class="alert alert-success">SMTP connection verified and saved.</div><% } %>
 <% if (flash.error)   { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
@@ -13,100 +13,82 @@
   </div>
 <% } %>
 
-<div class="provider-grid">
-
-  <!-- Gmail OAuth -->
-  <div class="card">
-    <h3>Gmail (OAuth)</h3>
-    <p class="muted">Send from your Gmail account. Uses OAuth — no password stored.</p>
-    <a href="/auth/google?purpose=email" class="btn btn-primary">Connect Gmail &rarr;</a>
-    <p style="margin:10px 0 0;font-size:13px;">
-      First time? <a href="/setup/google-oauth?return_to=/setup/email">Set up Google OAuth &rarr;</a>
-    </p>
-  </div>
-
-  <!-- SMTP -->
-  <div class="card">
-    <h3>SMTP</h3>
-    <p class="muted">Any email provider: Fastmail, iCloud Mail, Proton Mail, SendGrid, etc.</p>
-    <details>
-      <summary class="btn btn-ghost">Configure SMTP</summary>
-      <form method="POST" action="/setup/email/smtp" class="form" style="margin-top:16px;" id="smtp-form">
-        <div class="form-group">
-          <label>Provider</label>
-          <select id="smtp-provider" onchange="smtpPickProvider(this.value)">
-            <option value="fastmail"   data-host="smtp.fastmail.com"        data-port="465">Fastmail</option>
-            <option value="icloud"     data-host="smtp.mail.me.com"         data-port="587">iCloud Mail</option>
-            <option value="yahoo"      data-host="smtp.mail.yahoo.com"      data-port="587">Yahoo Mail</option>
-            <option value="outlook"    data-host="smtp.office365.com"       data-port="587">Outlook / Microsoft 365</option>
-            <option value="zoho"       data-host="smtp.zoho.com"            data-port="587">Zoho Mail</option>
-            <option value="sendgrid"   data-host="smtp.sendgrid.net"        data-port="587">SendGrid</option>
-            <option value="mailgun"    data-host="smtp.mailgun.org"         data-port="587">Mailgun</option>
-            <option value="custom"     data-host=""                         data-port="">Custom…</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>SMTP Host</label>
-          <input type="text" name="host" id="smtp-host" placeholder="smtp.fastmail.com"
-                 value="smtp.fastmail.com" required>
-        </div>
-        <div class="form-group" id="smtp-port-group" style="display:none;">
-          <label>Port</label>
-          <input type="number" name="port" id="smtp-port" value="465" required>
-        </div>
-        <input type="hidden" name="port" id="smtp-port-hidden" value="465">
-        <div class="form-group">
-          <label>Username</label>
-          <input type="text" name="user" placeholder="you@example.com" required>
-        </div>
-        <div class="form-group">
-          <label>Password / App Password</label>
-          <input type="password" name="password" required>
-        </div>
-        <div class="form-group">
-          <label>From Address <span class="hint">(defaults to username)</span></label>
-          <input type="email" name="from" placeholder="you@example.com">
-        </div>
-        <button type="submit" class="btn btn-primary">Save</button>
-      </form>
-    </details>
-
-    <script>
-    const SMTP_PROVIDERS = (() => {
-      const opts = document.querySelectorAll('#smtp-provider option');
-      const map = {};
-      opts.forEach(o => { map[o.value] = { host: o.dataset.host, port: o.dataset.port }; });
-      return map;
-    })();
-
-    function smtpPickProvider(val) {
-      const p = SMTP_PROVIDERS[val];
-      const hostEl        = document.getElementById('smtp-host');
-      const portHidden    = document.getElementById('smtp-port-hidden');
-      const portGroup     = document.getElementById('smtp-port-group');
-      const portVisible   = document.getElementById('smtp-port');
-
-      if (val === 'custom') {
-        hostEl.readOnly = false;
-        hostEl.value    = '';
-        portGroup.style.display = '';
-        portHidden.disabled     = true;
-        portVisible.value       = 587;
-      } else {
-        hostEl.readOnly = true;
-        hostEl.value    = p.host;
-        portGroup.style.display = 'none';
-        portHidden.disabled     = false;
-        portHidden.value        = p.port;
-      }
-    }
-
-    // Init on load
-    smtpPickProvider(document.getElementById('smtp-provider').value);
-    </script>
-  </div>
-
+<div class="card">
+  <h3>SMTP</h3>
+  <p class="muted">Any email provider: Fastmail, iCloud Mail, Proton Mail, Outlook, SendGrid, etc.</p>
+  <form method="POST" action="/setup/email/smtp" class="form" id="smtp-form">
+    <div class="form-group">
+      <label>Provider</label>
+      <select id="smtp-provider" onchange="smtpPickProvider(this.value)">
+        <option value="fastmail"   data-host="smtp.fastmail.com"        data-port="465">Fastmail</option>
+        <option value="icloud"     data-host="smtp.mail.me.com"         data-port="587">iCloud Mail</option>
+        <option value="yahoo"      data-host="smtp.mail.yahoo.com"      data-port="587">Yahoo Mail</option>
+        <option value="outlook"    data-host="smtp.office365.com"       data-port="587">Outlook / Microsoft 365</option>
+        <option value="zoho"       data-host="smtp.zoho.com"            data-port="587">Zoho Mail</option>
+        <option value="sendgrid"   data-host="smtp.sendgrid.net"        data-port="587">SendGrid</option>
+        <option value="mailgun"    data-host="smtp.mailgun.org"         data-port="587">Mailgun</option>
+        <option value="custom"     data-host=""                         data-port="">Custom…</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>SMTP Host</label>
+      <input type="text" name="host" id="smtp-host" placeholder="smtp.fastmail.com"
+             value="smtp.fastmail.com" required>
+    </div>
+    <div class="form-group" id="smtp-port-group" style="display:none;">
+      <label>Port</label>
+      <input type="number" name="port" id="smtp-port" value="465" required>
+    </div>
+    <input type="hidden" name="port" id="smtp-port-hidden" value="465">
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" name="user" placeholder="you@example.com" required>
+    </div>
+    <div class="form-group">
+      <label>Password / App Password</label>
+      <input type="password" name="password" required>
+    </div>
+    <div class="form-group">
+      <label>From Address <span class="hint">(defaults to username)</span></label>
+      <input type="email" name="from" placeholder="you@example.com">
+    </div>
+    <button type="submit" class="btn btn-primary">Save & Verify</button>
+  </form>
 </div>
+
+<script>
+const SMTP_PROVIDERS = (() => {
+  const opts = document.querySelectorAll('#smtp-provider option');
+  const map = {};
+  opts.forEach(o => { map[o.value] = { host: o.dataset.host, port: o.dataset.port }; });
+  return map;
+})();
+
+function smtpPickProvider(val) {
+  const p = SMTP_PROVIDERS[val];
+  const hostEl        = document.getElementById('smtp-host');
+  const portHidden    = document.getElementById('smtp-port-hidden');
+  const portGroup     = document.getElementById('smtp-port-group');
+  const portVisible   = document.getElementById('smtp-port');
+
+  if (val === 'custom') {
+    hostEl.readOnly = false;
+    hostEl.value    = '';
+    portGroup.style.display = '';
+    portHidden.disabled     = true;
+    portVisible.value       = 587;
+  } else {
+    hostEl.readOnly = true;
+    hostEl.value    = p.host;
+    portGroup.style.display = 'none';
+    portHidden.disabled     = false;
+    portHidden.value        = p.port;
+  }
+}
+
+// Init on load
+smtpPickProvider(document.getElementById('smtp-provider').value);
+</script>
 
 <div class="form-actions" style="margin-top:24px;">
   <a href="/setup/api-keys" class="btn btn-ghost">Next: API Keys &rarr;</a>
