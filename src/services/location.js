@@ -32,7 +32,10 @@ function resolveWeatherLocation(events, defaultCity, defaultLat, defaultLon) {
     if (!e.allDay) continue;
     const text = `${e.title} ${e.location}`.toLowerCase();
     for (const key of Object.keys(CITY_COORDS)) {
-      if (text.includes(key)) return CITY_COORDS[key];
+      if (text.includes(key)) {
+        console.log(`[location] Matched "${key}" from all-day event: "${e.title}" (location: "${e.location}")`);
+        return CITY_COORDS[key];
+      }
     }
   }
 
@@ -41,7 +44,10 @@ function resolveWeatherLocation(events, defaultCity, defaultLat, defaultLon) {
     if (e.allDay) continue;
     const text = `${e.title} ${e.location}`.toLowerCase();
     for (const key of Object.keys(CITY_COORDS)) {
-      if (text.includes(key)) return CITY_COORDS[key];
+      if (text.includes(key)) {
+        console.log(`[location] Matched "${key}" from timed event: "${e.title}" (location: "${e.location}")`);
+        return CITY_COORDS[key];
+      }
     }
   }
 
