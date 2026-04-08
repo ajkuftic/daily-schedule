@@ -23,19 +23,6 @@ const CITY_COORDS = {
   'boston':        { city: 'Boston, MA',               lat: 42.3601,  lon: -71.0589  },
 };
 
-const TIMEZONE_COORDS = {
-  'Europe/Paris':      CITY_COORDS['paris'],
-  'Europe/Budapest':   CITY_COORDS['budapest'],
-  'Europe/London':     CITY_COORDS['london'],
-  'Europe/Vienna':     CITY_COORDS['vienna'],
-  'Europe/Amsterdam':  CITY_COORDS['amsterdam'],
-  'Europe/Rome':       CITY_COORDS['rome'],
-  'Europe/Prague':     CITY_COORDS['prague'],
-  'Europe/Bratislava': CITY_COORDS['bratislava'],
-  'America/Chicago':   CITY_COORDS['chicago'],
-  'America/Denver':    CITY_COORDS['denver'],
-  'America/Los_Angeles': CITY_COORDS['los angeles'],
-};
 
 function resolveWeatherLocation(events, defaultCity, defaultLat, defaultLon) {
   const defaultLocation = { city: defaultCity, lat: defaultLat, lon: defaultLon };
@@ -58,12 +45,7 @@ function resolveWeatherLocation(events, defaultCity, defaultLat, defaultLon) {
     }
   }
 
-  // Pass 3: event timezones
-  for (const e of events) {
-    if (e.timezone && TIMEZONE_COORDS[e.timezone]) return TIMEZONE_COORDS[e.timezone];
-  }
-
-  return TIMEZONE_COORDS[defaultLocation.timezone] || defaultLocation;
+  return defaultLocation;
 }
 
 function buildClothingTip(weather, events) {
@@ -92,4 +74,4 @@ function buildClothingTip(weather, events) {
   return tip.trim();
 }
 
-module.exports = { resolveWeatherLocation, buildClothingTip, CITY_COORDS };
+module.exports = { resolveWeatherLocation, buildClothingTip };
