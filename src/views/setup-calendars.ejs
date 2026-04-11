@@ -187,6 +187,7 @@ const CALDAV_PROVIDERS = {
   },
   custom: {
     name:   '',
+    namePlaceholder: 'Provider Name',
     server: '',
     userPlaceholder: 'username',
     guide: `<strong>Custom CalDAV server:</strong> Enter your server's CalDAV URL, username, and password below. Consult your provider's documentation for the correct server URL.`,
@@ -203,7 +204,9 @@ function caldavPickProvider(val) {
   guideEl.innerHTML = p.guide;
   guideEl.style.display = '';
 
+  nameEl.placeholder = p.namePlaceholder || 'My Calendar';
   if (p.name) nameEl.value = p.name;
+  else nameEl.value = '';
 
   if (val === 'google') {
     // Auto-update server URL when email changes
