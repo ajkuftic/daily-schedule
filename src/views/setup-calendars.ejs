@@ -203,7 +203,7 @@ function caldavPickProvider(val) {
   guideEl.innerHTML = p.guide;
   guideEl.style.display = '';
 
-  if (p.name && !nameEl.value) nameEl.value = p.name;
+  if (p.name) nameEl.value = p.name;
 
   if (val === 'google') {
     // Auto-update server URL when email changes
