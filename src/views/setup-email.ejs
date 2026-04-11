@@ -15,75 +15,173 @@
 
 <div class="card">
   <h3>SMTP</h3>
-  <p class="muted">Any email provider: Fastmail, iCloud Mail, Proton Mail, Outlook, SendGrid, etc.</p>
+  <p class="muted">Connect any email account to send the newsletter.</p>
+
   <form method="POST" action="/setup/email/smtp" class="form" id="smtp-form">
+
     <div class="form-group">
       <label>Provider</label>
       <select id="smtp-provider" onchange="smtpPickProvider(this.value)">
-        <option value="fastmail"   data-host="smtp.fastmail.com"        data-port="465">Fastmail</option>
-        <option value="icloud"     data-host="smtp.mail.me.com"         data-port="587">iCloud Mail</option>
-        <option value="yahoo"      data-host="smtp.mail.yahoo.com"      data-port="587">Yahoo Mail</option>
-        <option value="outlook"    data-host="smtp.office365.com"       data-port="587">Outlook / Microsoft 365</option>
-        <option value="zoho"       data-host="smtp.zoho.com"            data-port="587">Zoho Mail</option>
-        <option value="sendgrid"   data-host="smtp.sendgrid.net"        data-port="587">SendGrid</option>
-        <option value="mailgun"    data-host="smtp.mailgun.org"         data-port="587">Mailgun</option>
-        <option value="custom"     data-host=""                         data-port="">Custom…</option>
+        <option value="fastmail">Fastmail</option>
+        <option value="icloud">iCloud Mail</option>
+        <option value="gmail">Gmail</option>
+        <option value="yahoo">Yahoo Mail</option>
+        <option value="outlook">Outlook / Microsoft 365</option>
+        <option value="zoho">Zoho Mail</option>
+        <option value="sendgrid">SendGrid</option>
+        <option value="mailgun">Mailgun</option>
+        <option value="custom">Custom / Other</option>
       </select>
     </div>
+
+    <div id="smtp-guide" class="alert alert-info" style="font-size:14px;line-height:1.6;"></div>
+
     <div class="form-group">
       <label>SMTP Host</label>
-      <input type="text" name="host" id="smtp-host" placeholder="smtp.fastmail.com"
-             value="smtp.fastmail.com" required>
+      <input type="text" name="host" id="smtp-host" placeholder="smtp.fastmail.com" required>
     </div>
     <div class="form-group" id="smtp-port-group" style="display:none;">
       <label>Port</label>
-      <input type="number" name="port" id="smtp-port" value="465" required>
+      <input type="number" name="port" id="smtp-port" value="587" required>
     </div>
     <input type="hidden" name="port" id="smtp-port-hidden" value="465">
     <div class="form-group">
       <label>Username</label>
-      <input type="text" name="user" placeholder="you@example.com" required>
+      <input type="text" name="user" id="smtp-user" placeholder="you@example.com" required autocomplete="username">
     </div>
     <div class="form-group">
-      <label>Password / App Password</label>
-      <input type="password" name="password" required>
+      <label id="smtp-password-label">Password / App Password</label>
+      <input type="password" name="password" required autocomplete="current-password">
     </div>
     <div class="form-group">
       <label>From Address <span class="hint">(defaults to username)</span></label>
       <input type="email" name="from" placeholder="you@example.com">
     </div>
-    <button type="submit" class="btn btn-primary">Save & Verify</button>
+    <button type="submit" class="btn btn-primary">Save &amp; Verify</button>
   </form>
 </div>
 
 <script>
-const SMTP_PROVIDERS = (() => {
-  const opts = document.querySelectorAll('#smtp-provider option');
-  const map = {};
-  opts.forEach(o => { map[o.value] = { host: o.dataset.host, port: o.dataset.port }; });
-  return map;
-})();
+const SMTP_PROVIDERS = {
+  fastmail: {
+    host: 'smtp.fastmail.com', port: '465',
+    userPlaceholder: 'you@fastmail.com',
+    guide: `<strong>Setting up Fastmail:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>In Fastmail, go to <strong>Settings → Privacy &amp; Security → Third-party apps</strong>.</li>
+        <li>Click <strong>New App Password</strong>, name it "Daily Schedule", and set the type to <strong>SMTP</strong>.</li>
+        <li>Copy the generated password — your username is your Fastmail email address.</li>
+      </ol>`,
+  },
+  icloud: {
+    host: 'smtp.mail.me.com', port: '587',
+    userPlaceholder: 'you@icloud.com',
+    guide: `<strong>Setting up iCloud Mail:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>Go to <a href="https://appleid.apple.com" target="_blank">appleid.apple.com</a> and sign in.</li>
+        <li>Under <strong>Sign-In and Security</strong>, click <strong>App-Specific Passwords</strong>.</li>
+        <li>Click <strong>+ Generate an app-specific password</strong>, name it "Daily Schedule", and copy the password.</li>
+        <li>Your username is your Apple ID email (e.g. you@icloud.com).</li>
+      </ol>`,
+  },
+  gmail: {
+    host: 'smtp.gmail.com', port: '587',
+    userPlaceholder: 'you@gmail.com',
+    guide: `<strong>Setting up Gmail:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>Make sure <strong>2-Step Verification</strong> is enabled on your Google account at <a href="https://myaccount.google.com/security" target="_blank">myaccount.google.com/security</a>.</li>
+        <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a>.</li>
+        <li>Create an App Password named "Daily Schedule" and copy the 16-character password.</li>
+        <li>Use your Gmail address as the username and the App Password as the password below.</li>
+      </ol>`,
+  },
+  yahoo: {
+    host: 'smtp.mail.yahoo.com', port: '587',
+    userPlaceholder: 'you@yahoo.com',
+    guide: `<strong>Setting up Yahoo Mail:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>Sign in to Yahoo Mail and go to <strong>Account Security</strong> settings.</li>
+        <li>Enable <strong>Two-step verification</strong> if not already on.</li>
+        <li>Under <strong>Generate app password</strong>, create one named "Daily Schedule" and copy it.</li>
+        <li>Use your Yahoo email as the username and the app password below.</li>
+      </ol>`,
+  },
+  outlook: {
+    host: 'smtp.office365.com', port: '587',
+    userPlaceholder: 'you@outlook.com',
+    guide: `<strong>Setting up Outlook / Microsoft 365:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>Sign in at <a href="https://account.microsoft.com" target="_blank">account.microsoft.com</a>.</li>
+        <li>Go to <strong>Security → Advanced security options → App passwords</strong>.</li>
+        <li>Create an app password named "Daily Schedule" and copy it.</li>
+        <li>Use your full email address as the username and the app password below.</li>
+        <li><em>Note: App passwords require two-step verification to be enabled.</em></li>
+      </ol>`,
+  },
+  zoho: {
+    host: 'smtp.zoho.com', port: '587',
+    userPlaceholder: 'you@zoho.com',
+    guide: `<strong>Setting up Zoho Mail:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>Sign in to Zoho Mail and go to <strong>My Account → Security → App Passwords</strong>.</li>
+        <li>Generate an app password named "Daily Schedule".</li>
+        <li>Use your Zoho email as the username and the app password below.</li>
+      </ol>`,
+  },
+  sendgrid: {
+    host: 'smtp.sendgrid.net', port: '587',
+    userPlaceholder: 'apikey',
+    guide: `<strong>Setting up SendGrid:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>In SendGrid, go to <strong>Settings → API Keys → Create API Key</strong>.</li>
+        <li>Choose <strong>Restricted Access</strong> and enable <strong>Mail Send</strong>.</li>
+        <li>Copy the API key.</li>
+        <li>Username is literally <code>apikey</code> (not your email). The API key is the password.</li>
+      </ol>`,
+  },
+  mailgun: {
+    host: 'smtp.mailgun.org', port: '587',
+    userPlaceholder: 'postmaster@your-domain.mailgun.org',
+    guide: `<strong>Setting up Mailgun:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>In Mailgun, go to <strong>Sending → Domains → your domain → SMTP credentials</strong>.</li>
+        <li>Use the SMTP username (e.g. <code>postmaster@your-domain.mailgun.org</code>) and the SMTP password shown there.</li>
+      </ol>`,
+  },
+  custom: {
+    host: '', port: '587',
+    userPlaceholder: 'you@example.com',
+    guide: `<strong>Custom SMTP:</strong> Enter your mail server's hostname, port (usually 465 for SSL or 587 for TLS), username, and password. Check your email provider's documentation for the correct settings.`,
+  },
+};
 
 function smtpPickProvider(val) {
-  const p = SMTP_PROVIDERS[val];
-  const hostEl        = document.getElementById('smtp-host');
-  const portHidden    = document.getElementById('smtp-port-hidden');
-  const portGroup     = document.getElementById('smtp-port-group');
-  const portVisible   = document.getElementById('smtp-port');
+  const p           = SMTP_PROVIDERS[val];
+  const hostEl      = document.getElementById('smtp-host');
+  const portHidden  = document.getElementById('smtp-port-hidden');
+  const portGroup   = document.getElementById('smtp-port-group');
+  const portVisible = document.getElementById('smtp-port');
+  const userEl      = document.getElementById('smtp-user');
+  const guideEl     = document.getElementById('smtp-guide');
+
+  guideEl.innerHTML = p.guide;
+  guideEl.style.display = '';
 
   if (val === 'custom') {
     hostEl.readOnly = false;
-    hostEl.value    = '';
+    hostEl.value = '';
     portGroup.style.display = '';
-    portHidden.disabled     = true;
-    portVisible.value       = 587;
+    portHidden.disabled = true;
+    portVisible.value = 587;
   } else {
     hostEl.readOnly = true;
-    hostEl.value    = p.host;
+    hostEl.value = p.host;
     portGroup.style.display = 'none';
-    portHidden.disabled     = false;
-    portHidden.value        = p.port;
+    portHidden.disabled = false;
+    portHidden.value = p.port;
   }
+
+  userEl.placeholder = p.userPlaceholder;
 }
 
 // Init on load

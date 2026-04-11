@@ -54,30 +54,44 @@
   <!-- CalDAV -->
   <div class="card">
     <h3>CalDAV</h3>
-    <p class="muted">Apple iCloud, Fastmail, Nextcloud, or any CalDAV server.</p>
+    <p class="muted">Apple iCloud, Google Calendar, Fastmail, Nextcloud, or any CalDAV server.</p>
     <details>
       <summary class="btn btn-ghost">Add CalDAV account</summary>
       <form method="POST" action="/setup/calendars/caldav" class="form" style="margin-top:16px;">
+
+        <div class="form-group">
+          <label>Provider</label>
+          <select id="caldav-provider" onchange="caldavPickProvider(this.value)">
+            <option value="icloud">Apple iCloud</option>
+            <option value="google">Google Calendar</option>
+            <option value="fastmail">Fastmail</option>
+            <option value="nextcloud">Nextcloud / Self-hosted</option>
+            <option value="custom">Other / Custom</option>
+          </select>
+        </div>
+
+        <div id="caldav-guide" class="alert alert-info" style="font-size:14px;line-height:1.6;"></div>
+
         <div class="form-group">
           <label>Display Name</label>
-          <input type="text" name="name" placeholder="iCloud" required>
+          <input type="text" name="name" id="caldav-name" placeholder="My Calendar" required>
         </div>
         <div class="form-group">
           <label>Server URL</label>
-          <input type="text" name="server_url" placeholder="https://caldav.icloud.com" required>
+          <input type="text" name="server_url" id="caldav-server" placeholder="https://caldav.icloud.com" required>
         </div>
         <div class="form-group">
           <label>Username</label>
-          <input type="text" name="username" placeholder="user@icloud.com" required>
+          <input type="text" name="username" id="caldav-user" placeholder="you@example.com" required autocomplete="username">
         </div>
         <div class="form-group">
           <label>Password / App-specific password</label>
-          <input type="password" name="password" required>
+          <input type="password" name="password" required autocomplete="current-password">
         </div>
         <div class="form-group">
           <label><input type="checkbox" name="is_reminder"> Reminder calendar (always show in home timezone)</label>
         </div>
-        <button type="submit" class="btn btn-primary">Add</button>
+        <button type="submit" class="btn btn-primary">Connect &amp; Pick Calendars &rarr;</button>
       </form>
     </details>
   </div>
@@ -88,6 +102,17 @@
     <p class="muted">Any public .ics URL — holidays, sports schedules, Google Calendar share links, etc.</p>
     <details>
       <summary class="btn btn-ghost">Add ICS feed</summary>
+
+      <div class="alert alert-info" style="margin-top:16px;font-size:14px;line-height:1.6;">
+        <strong>How to get an ICS URL:</strong>
+        <ul style="margin:8px 0 0 16px;padding:0;">
+          <li><strong>Google Calendar:</strong> Open Google Calendar → click the three-dot menu next to a calendar → Settings → scroll to "Integrate calendar" → copy the <em>Secret address in iCal format</em> link.</li>
+          <li><strong>Apple iCloud:</strong> Open iCloud.com → Calendar → click the share icon next to a calendar → enable Public Calendar → copy the link.</li>
+          <li><strong>Outlook / Microsoft 365:</strong> Go to Outlook.com → Calendar → Settings → Shared calendars → Publish a calendar → copy the ICS link.</li>
+          <li><strong>Other:</strong> Look for an "Export" or "Subscribe" option and copy the .ics URL.</li>
+        </ul>
+      </div>
+
       <form method="POST" action="/setup/calendars/ics" class="form" style="margin-top:16px;">
         <div class="form-group">
           <label>Display Name</label>
@@ -110,5 +135,98 @@
 <div class="form-actions" style="margin-top:24px;">
   <a href="/setup/email" class="btn btn-ghost">Next: Email &rarr;</a>
 </div>
+
+<script>
+const CALDAV_PROVIDERS = {
+  icloud: {
+    name:   'iCloud',
+    server: 'https://caldav.icloud.com',
+    userPlaceholder: 'you@icloud.com',
+    guide: `<strong>Setting up iCloud Calendar:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>Go to <a href="https://appleid.apple.com" target="_blank">appleid.apple.com</a> and sign in.</li>
+        <li>Under <strong>Sign-In and Security</strong>, click <strong>App-Specific Passwords</strong>.</li>
+        <li>Click <strong>+ Generate an app-specific password</strong>, name it "Daily Schedule", and copy the password.</li>
+        <li>Your username is your Apple ID email address (e.g. you@icloud.com).</li>
+      </ol>`,
+  },
+  google: {
+    name:   'Google Calendar',
+    server: 'https://www.google.com/calendar/dav/{email}/events/',
+    userPlaceholder: 'you@gmail.com',
+    guide: `<strong>Setting up Google Calendar:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>Make sure <strong>2-Step Verification</strong> is enabled on your Google account at <a href="https://myaccount.google.com/security" target="_blank">myaccount.google.com/security</a>.</li>
+        <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a>.</li>
+        <li>Create an App Password named "Daily Schedule" and copy the 16-character password.</li>
+        <li>The Server URL will be filled in automatically when you enter your email below.</li>
+      </ol>`,
+  },
+  fastmail: {
+    name:   'Fastmail',
+    server: 'https://caldav.fastmail.com',
+    userPlaceholder: 'you@fastmail.com',
+    guide: `<strong>Setting up Fastmail Calendar:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>In Fastmail, go to <strong>Settings → Privacy &amp; Security → Third-party apps</strong>.</li>
+        <li>Click <strong>New App Password</strong>, name it "Daily Schedule", and set the type to <strong>CalDAV</strong>.</li>
+        <li>Copy the generated password — your username is your Fastmail email address.</li>
+      </ol>`,
+  },
+  nextcloud: {
+    name:   'Nextcloud',
+    server: 'https://your-nextcloud.com/remote.php/dav',
+    userPlaceholder: 'your-username',
+    guide: `<strong>Setting up Nextcloud Calendar:</strong>
+      <ol style="margin:8px 0 0 16px;padding:0;">
+        <li>Log in to your Nextcloud instance.</li>
+        <li>Click your profile icon (top right) → <strong>Personal Settings → Security</strong>.</li>
+        <li>Under <strong>App passwords</strong>, enter "Daily Schedule" and click <strong>Create new app password</strong>.</li>
+        <li>Replace <code>your-nextcloud.com</code> in the Server URL with your actual Nextcloud domain.</li>
+      </ol>`,
+  },
+  custom: {
+    name:   '',
+    server: '',
+    userPlaceholder: 'username',
+    guide: `<strong>Custom CalDAV server:</strong> Enter your server's CalDAV URL, username, and password below. Consult your provider's documentation for the correct server URL.`,
+  },
+};
+
+function caldavPickProvider(val) {
+  const p = CALDAV_PROVIDERS[val];
+  const nameEl   = document.getElementById('caldav-name');
+  const serverEl = document.getElementById('caldav-server');
+  const userEl   = document.getElementById('caldav-user');
+  const guideEl  = document.getElementById('caldav-guide');
+
+  guideEl.innerHTML = p.guide;
+  guideEl.style.display = '';
+
+  if (p.name && !nameEl.value) nameEl.value = p.name;
+
+  if (val === 'google') {
+    // Auto-update server URL when email changes
+    serverEl.readOnly = true;
+    serverEl.value = 'https://www.google.com/calendar/dav//events/';
+    userEl.placeholder = p.userPlaceholder;
+    userEl.addEventListener('input', syncGoogleUrl);
+  } else {
+    userEl.removeEventListener('input', syncGoogleUrl);
+    serverEl.readOnly = val !== 'custom' && val !== 'nextcloud';
+    serverEl.value = p.server;
+    userEl.placeholder = p.userPlaceholder;
+  }
+}
+
+function syncGoogleUrl() {
+  const email = document.getElementById('caldav-user').value.trim();
+  document.getElementById('caldav-server').value =
+    'https://www.google.com/calendar/dav/' + email + '/events/';
+}
+
+// Init on load
+caldavPickProvider('icloud');
+</script>
 
 <%- include('_foot') %>
