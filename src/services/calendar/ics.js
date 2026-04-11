@@ -66,7 +66,7 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
       end:      end.toISOString(),
       timezone: defaultTz,
       rawDate,
-      location: get('LOCATION')    || '',
+      location: (get('LOCATION')    || '').replace(/\\n/g, ' ').replace(/\\,/g, ','),
       notes:    (get('DESCRIPTION') || '').replace(/\\n/g, '\n').replace(/\\,/g, ','),
       allDay:   isAllDay,
       calendar: calendarName,
