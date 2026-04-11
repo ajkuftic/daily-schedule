@@ -1,0 +1,50 @@
+<%- include('_head', { title: editMode ? 'Edit CalDAV Calendars' : 'Select CalDAV Calendars' }) %>
+
+<h1><%= editMode ? 'Edit' : 'Add' %> CalDAV Account</h1>
+<p class="subtitle">Choose which calendars to pull events from.</p>
+
+<% if (flash && flash.error) { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
+
+<form method="POST" action="/setup/calendars/caldav-pick" class="form">
+  <input type="hidden" name="calendars_json" value="<%= JSON.stringify(calendars) %>">
+
+  <div class="card" style="margin-bottom:24px;">
+    <h3>Available Calendars</h3>
+    <% if (calendars.length === 0) { %>
+      <p class="muted">No calendars found on this server.</p>
+    <% } else { %>
+      <table class="table">
+        <thead><tr><th style="width:40px;">Include</th><th>Calendar</th></tr></thead>
+        <tbody>
+          <% for (const cal of calendars) { %>
+            <tr>
+              <td><input type="checkbox" name="calendar_urls" value="<%= cal.url %>"
+                <%= !currentUrls.size || currentUrls.has(cal.url) ? 'checked' : '' %>></td>
+              <td>
+                <strong><%= cal.displayName %></strong>
+                <div class="hint" style="font-size:12px;word-break:break-all;"><%= cal.url %></div>
+              </td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+      <p class="hint" style="margin-top:8px;">If none are checked, all calendars will be included.</p>
+    <% } %>
+  </div>
+
+  <% if (editMode && account) { %>
+    <div class="card" style="margin-bottom:24px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Account label</label>
+        <input type="text" name="account_name" value="<%= account.name %>" placeholder="My Calendar" required>
+      </div>
+    </div>
+  <% } %>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="/setup/calendars" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>
+
+<%- include('_foot') %>
