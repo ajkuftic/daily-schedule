@@ -5,6 +5,7 @@ const fs         = require('fs');
 const multer     = require('multer');
 const express    = require('express');
 const nodemailer = require('nodemailer');
+const { DAVClient } = require('tsdav');
 const db         = require('../db/index');
 const { reschedule } = require('../scheduler');
 
@@ -42,22 +43,16 @@ async function validateIcsUrl(url) {
   if (!text.includes('BEGIN:VCALENDAR')) throw new Error('URL does not appear to be a valid ICS/iCal feed');
 }
 
-async function validateCalDav({ serverUrl, username, password, authMethod }) {
-  // Quick HTTP probe: try PROPFIND on the server root — a 401/207/405 all mean the server is reachable
-  const auth = Buffer.from(`${username}:${password}`).toString('base64');
-  const probe = await fetch(serverUrl, {
-    method:  'PROPFIND',
-    headers: {
-      Authorization: `Basic ${auth}`,
-      Depth:         '0',
-      'Content-Type': 'text/xml',
-    },
-    body:   '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:current-user-principal/></d:prop></d:propfind>',
-    signal: AbortSignal.timeout(10_000),
+async function fetchCalDAVCalendars({ serverUrl, username, password, authMethod }) {
+  const client = new DAVClient({
+    serverUrl,
+    credentials: { username, password },
+    authMethod:  authMethod || 'Basic',
+    defaultAccountType: 'caldav',
   });
-  // 207 = success, 401 = server reachable but bad credentials, anything else is a problem
-  if (probe.status === 401) throw new Error('CalDAV authentication failed — check username and password');
-  if (!probe.ok && probe.status !== 207) throw new Error(`CalDAV server returned HTTP ${probe.status}`);
+  await client.login();
+  const cals = await client.fetchCalendars();
+  return cals.map(c => ({ url: c.url, displayName: c.displayName || c.url }));
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────
@@ -118,25 +113,52 @@ router.get('/calendars', (req, res) => {
   res.render('setup-calendars', { accounts, flash: req.query });
 });
 
-// Save CalDAV account
+// Save CalDAV account — validate credentials, fetch calendar list, redirect to picker
 router.post('/calendars/caldav', async (req, res) => {
   try {
     const { name, server_url, username, password, auth_method, is_reminder } = req.body;
     if (!server_url) throw new Error('Server URL is required');
     if (!username)   throw new Error('Username is required');
     if (!password)   throw new Error('Password is required');
-    await validateCalDav({ serverUrl: server_url, username, password, authMethod: auth_method || 'Basic' });
-    db.upsertCalendarAccount({
-      name,
-      provider:    'caldav',
-      is_reminder: !!is_reminder,
-      credentials: { serverUrl: server_url, username, password, authMethod: auth_method || 'Basic' },
-      metadata:    { displayName: name },
-    });
-    res.redirect('/setup/calendars?saved=caldav');
+    const calendars = await fetchCalDAVCalendars({ serverUrl: server_url, username, password, authMethod: auth_method || 'Basic' });
+    req.session.pendingCalDAVCreds     = { name, server_url, username, password, auth_method, is_reminder };
+    req.session.pendingCalDAVCalendars = calendars;
+    res.redirect('/setup/calendars/caldav-pick');
   } catch (err) {
     errRedirect(res, '/setup/calendars', err);
   }
+});
+
+// CalDAV calendar picker (after credential validation)
+router.get('/calendars/caldav-pick', (req, res) => {
+  const calendars = req.session.pendingCalDAVCalendars;
+  if (!calendars) return res.redirect('/setup/calendars?error=session-expired');
+  res.render('setup-caldav-pick', {
+    calendars,
+    editMode:    false,
+    account:     null,
+    currentUrls: new Set(),
+    flash:       req.query,
+  });
+});
+
+router.post('/calendars/caldav-pick', (req, res) => {
+  const creds = req.session.pendingCalDAVCreds;
+  if (!creds) return res.redirect('/setup/calendars?error=session-expired');
+  const selectedUrls = [].concat(req.body.calendar_urls || []);
+  const accountId    = creds.accountId ? parseInt(creds.accountId, 10) : undefined;
+  const name         = (req.body.account_name || creds.name || 'CalDAV').trim();
+  db.upsertCalendarAccount({
+    id:          accountId,
+    name,
+    provider:    'caldav',
+    is_reminder: !!creds.is_reminder,
+    credentials: { serverUrl: creds.server_url, username: creds.username, password: creds.password, authMethod: creds.auth_method || 'Basic' },
+    metadata:    { displayName: name, calendarUrls: selectedUrls },
+  });
+  delete req.session.pendingCalDAVCreds;
+  delete req.session.pendingCalDAVCalendars;
+  res.redirect('/setup/calendars?saved=caldav');
 });
 
 // Save ICS feed
@@ -166,11 +188,26 @@ router.post('/calendars/:id/blurbs', (req, res) => {
   res.redirect('/setup/calendars?saved=blurbs');
 });
 
-// Edit calendar account — rename
-router.get('/calendars/:id/edit', (req, res) => {
+// Edit calendar account
+router.get('/calendars/:id/edit', async (req, res) => {
   const id      = parseInt(req.params.id, 10);
   const account = db.getCalendarAccount(id);
   if (!account) return res.redirect('/setup/calendars?error=Calendar+not+found');
+
+  if (account.provider === 'caldav') {
+    try {
+      const calendars  = await fetchCalDAVCalendars({ ...account.credentials, authMethod: account.credentials.authMethod });
+      const currentUrls = new Set(account.metadata?.calendarUrls || []);
+      // Store creds in session so POST /caldav-pick can save with the existing account id
+      req.session.pendingCalDAVCreds     = { ...account.credentials, server_url: account.credentials.serverUrl, name: account.name, is_reminder: account.is_reminder, accountId: id };
+      req.session.pendingCalDAVCalendars = calendars;
+      return res.render('setup-caldav-pick', { calendars, editMode: true, account, currentUrls, flash: req.query });
+    } catch (err) {
+      return errRedirect(res, '/setup/calendars', err);
+    }
+  }
+
+  // ICS and other providers: rename only
   res.render('setup-calendar-rename', { account, flash: req.query });
 });
 
