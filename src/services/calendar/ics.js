@@ -41,10 +41,12 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
 
     if (isAllDay) {
       rawDate = `${dtstart.substring(0,4)}-${dtstart.substring(4,6)}-${dtstart.substring(6,8)}`;
-      if (rawDate !== isoDate) continue;
-      start = new Date(`${rawDate}T00:00:00`);
       const dtend = get('DTEND') || dtstart;
-      end = new Date(`${dtend.substring(0,4)}-${dtend.substring(4,6)}-${dtend.substring(6,8)}T00:00:00`);
+      const endDate = `${dtend.substring(0,4)}-${dtend.substring(4,6)}-${dtend.substring(6,8)}`;
+      // Include if isoDate falls within the event's range (DTEND is exclusive in iCal)
+      if (isoDate < rawDate || isoDate >= endDate) continue;
+      start = new Date(`${rawDate}T00:00:00`);
+      end = new Date(`${endDate}T00:00:00`);
     } else {
       start = parseICalDate(dtstart);
       const dtend = get('DTEND') || dtstart;

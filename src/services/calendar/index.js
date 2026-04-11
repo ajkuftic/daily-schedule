@@ -57,9 +57,9 @@ async function fetchAllEvents(accounts, dayStart, dayEnd, isoDate, defaultTz) {
     }
   }
 
-  // Filter to isoDate
+  // Filter timed events to isoDate (all-day events are already filtered by their fetchers)
   const filtered = allEvents.filter(e => {
-    if (e.allDay) return e.rawDate === isoDate;
+    if (e.allDay) return true;
     const localDate = new Intl.DateTimeFormat('en-CA', { timeZone: e.timezone || defaultTz }).format(new Date(e.start));
     return localDate === isoDate;
   });
