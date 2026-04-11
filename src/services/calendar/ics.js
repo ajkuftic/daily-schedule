@@ -9,12 +9,18 @@ const axios = require('axios');
  * metadata:    { displayName: 'Holidays' }
  */
 async function fetchICSEvents({ credentials, metadata = {}, isoDate, defaultTz }) {
+  const name = metadata.displayName || 'ICS';
   try {
     const { data } = await axios.get(credentials.url, { timeout: 10000, responseType: 'text' });
-    const events = parseICS(data, isoDate, defaultTz, metadata.displayName || 'ICS');
+    const totalVevents = (data.match(/BEGIN:VEVENT/g) || []).length;
+    const events = parseICS(data, isoDate, defaultTz, name);
+    console.log(`[ics] "${name}": ${totalVevents} total VEVENTs in feed, ${events.length} match ${isoDate}`);
+    if (events.length > 0) {
+      for (const e of events) console.log(`[ics]   → "${e.title}" allDay=${e.allDay} start=${e.start}`);
+    }
     return events;
   } catch (err) {
-    console.error('[ics] Failed to fetch feed:', err.message);
+    console.error(`[ics] "${name}": Failed to fetch feed:`, err.message);
     return [];
   }
 }
