@@ -15,6 +15,7 @@ const webhookRoutes = require('./routes/webhook');
 const logsRoutes    = require('./routes/logs');
 const requireAuth   = require('./middleware/requireAuth');
 const { startScheduler } = require('./scheduler');
+const db            = require('./db/index');
 
 const fs = require('fs');
 
@@ -52,6 +53,15 @@ app.get('/login',  (req, res) => {
 });
 
 app.use(requireAuth);                      // everything below requires login
+
+// Expose branding colors to all views
+app.use((req, res, next) => {
+  res.locals.branding = {
+    primary: db.getConfig('branding_primary_color') || '#1a2e4a',
+    accent:  db.getConfig('branding_accent_color')  || '#c9a96e',
+  };
+  next();
+});
 
 // Serve uploaded logos (authenticated)
 app.use('/uploads', express.static(UPLOADS_DIR));
