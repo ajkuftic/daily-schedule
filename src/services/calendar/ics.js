@@ -97,7 +97,7 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
     }
 
     events.push({
-      title:    getProp('SUMMARY')     || '(No title)',
+      title:    (getProp('SUMMARY') || '(No title)').replace(/\\,/g, ',').replace(/\\n/g, ' ').replace(/\\;/g, ';'),
       start:    start.toISOString(),
       end:      end.toISOString(),
       timezone: defaultTz,
