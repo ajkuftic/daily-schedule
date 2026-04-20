@@ -44,12 +44,19 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
   const cancelledInstances = new Set(); // "uid:YYYY-MM-DD"
   for (const block of vevents) {
     const getP = (key) => { const m = block.match(new RegExp(`^${key}(?:;[^:]*)?:(.+)$`, 'm')); return m ? m[1].trim() : null; };
-    if (getP('STATUS') !== 'CANCELLED') continue;
-    const uid   = getP('UID');
-    const recId = getP('RECURRENCE-ID');
+    const status = getP('STATUS');
+    const uid    = getP('UID');
+    const recId  = getP('RECURRENCE-ID');
+    // Log every VEVENT that has any of these so we can see Google's exact format
+    if (status || recId) {
+      console.log(`[ics] pre-pass: STATUS=${status || '(none)'} RECURRENCE-ID=${recId || '(none)'} UID=${(uid || '').substring(0, 20)}…`);
+    }
+    if (status !== 'CANCELLED') continue;
     if (!uid || !recId) continue;
-    const ds = recId.replace(/T.*/, ''); // first 8 chars: YYYYMMDD
-    cancelledInstances.add(`${uid}:${ds.substring(0,4)}-${ds.substring(4,6)}-${ds.substring(6,8)}`);
+    const ds = recId.replace(/T.*/, ''); // YYYYMMDD portion
+    const dateKey = `${uid}:${ds.substring(0,4)}-${ds.substring(4,6)}-${ds.substring(6,8)}`;
+    console.log(`[ics] pre-pass: marking cancelled → ${dateKey}`);
+    cancelledInstances.add(dateKey);
   }
 
   for (const block of vevents) {
