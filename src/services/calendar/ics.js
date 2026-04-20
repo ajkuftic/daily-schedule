@@ -38,25 +38,18 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
 
   const vevents = normalized.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
 
-  // Pre-pass: collect cancelled instances from STATUS:CANCELLED + RECURRENCE-ID blocks.
-  // Google Calendar (and others) represent individually-deleted occurrences this way
-  // rather than adding them to EXDATE on the main VEVENT.
-  const cancelledInstances = new Set(); // "uid:YYYY-MM-DD"
+  // Pre-pass: any VEVENT with a RECURRENCE-ID is an override of a specific instance.
+  // Collect all of them so we can suppress the corresponding RRULE-generated occurrence.
+  // - STATUS:CONFIRMED overrides → suppress RRULE expansion (the override VEVENT itself is the real event)
+  // - STATUS:CANCELLED overrides → suppress RRULE expansion AND skip the VEVENT entirely
+  const overriddenInstances = new Set(); // "uid:YYYY-MM-DD"
   for (const block of vevents) {
     const getP = (key) => { const m = block.match(new RegExp(`^${key}(?:;[^:]*)?:(.+)$`, 'm')); return m ? m[1].trim() : null; };
-    const status = getP('STATUS');
-    const uid    = getP('UID');
-    const recId  = getP('RECURRENCE-ID');
-    // Log every VEVENT that has any of these so we can see Google's exact format
-    if (status || recId) {
-      console.log(`[ics] pre-pass: STATUS=${status || '(none)'} RECURRENCE-ID=${recId || '(none)'} UID=${(uid || '').substring(0, 20)}…`);
-    }
-    if (status !== 'CANCELLED') continue;
+    const uid   = getP('UID');
+    const recId = getP('RECURRENCE-ID');
     if (!uid || !recId) continue;
     const ds = recId.replace(/T.*/, ''); // YYYYMMDD portion
-    const dateKey = `${uid}:${ds.substring(0,4)}-${ds.substring(4,6)}-${ds.substring(6,8)}`;
-    console.log(`[ics] pre-pass: marking cancelled → ${dateKey}`);
-    cancelledInstances.add(dateKey);
+    overriddenInstances.add(`${uid}:${ds.substring(0,4)}-${ds.substring(4,6)}-${ds.substring(6,8)}`);
   }
 
   for (const block of vevents) {
@@ -78,11 +71,13 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
     const dtstart = getProp('DTSTART');
     if (!dtstart) continue;
 
-    const rruleStr  = getProp('RRULE');
-    const exdateStr = getProp('EXDATE');
-    const dtend     = getProp('DTEND');
-    const uid       = getProp('UID') || '';
-    const isAllDay  = /^\d{8}$/.test(dtstart);
+    const rruleStr   = getProp('RRULE');
+    const dtend      = getProp('DTEND');
+    const uid        = getProp('UID') || '';
+    const isAllDay   = /^\d{8}$/.test(dtstart);
+
+    // Collect ALL EXDATE lines (Google may emit one per excluded date)
+    const exdateValues = [...block.matchAll(/^EXDATE(?:;[^:]*)?:(.+)$/gm)].map(m => m[1].trim());
 
     // Determine the timezone for this event's DTSTART
     const eventTzid = getParam('DTSTART', 'TZID') ||
@@ -98,8 +93,8 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
 
       if (rruleStr) {
         // Recurring all-day: check if isoDate is a valid occurrence
-        if (!isAllDayOccurrence(rawDate, endDate, rruleStr, exdateStr, isoDate)) continue;
-        if (cancelledInstances.has(`${uid}:${isoDate}`)) continue;
+        if (!isAllDayOccurrence(rawDate, endDate, rruleStr, exdateValues, isoDate)) continue;
+        if (overriddenInstances.has(`${uid}:${isoDate}`)) continue;
         rawDate = isoDate;
         start   = new Date(`${isoDate}T00:00:00`);
         end     = new Date(`${isoDate}T00:00:00`);
@@ -112,9 +107,9 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
     } else {
       if (rruleStr) {
         // Recurring timed event: find the single occurrence on isoDate
-        const occ = getTimedOccurrenceOnDate(dtstart, eventTzid, rruleStr, exdateStr, dtend, isoDate, defaultTz);
+        const occ = getTimedOccurrenceOnDate(dtstart, eventTzid, rruleStr, exdateValues, dtend, isoDate, defaultTz);
         if (!occ) continue;
-        if (cancelledInstances.has(`${uid}:${isoDate}`)) continue;
+        if (overriddenInstances.has(`${uid}:${isoDate}`)) continue;
         ({ start, end } = occ);
       } else {
         // Non-recurring timed event — pass through; orchestrator filters by date
@@ -237,12 +232,13 @@ function icalToUtc(str, tzid) {
   return new Date(approx.getTime() + (wantSec - gotSec) * 1000);
 }
 
-/** Build a Set of excluded date strings (YYYY-MM-DD) from an EXDATE property value. */
-function buildExdateSet(exdateStr, tzid) {
+/** Build a Set of excluded date strings (YYYY-MM-DD) from an array of EXDATE property values. */
+function buildExdateSet(exdateValues, tzid) {
   const set = new Set();
-  if (!exdateStr) return set;
-  for (const ex of exdateStr.split(',')) {
-    try { set.add(icalToUtc(ex.trim(), tzid).toISOString().substring(0, 10)); } catch {}
+  for (const exdateStr of exdateValues) {
+    for (const ex of exdateStr.split(',')) {
+      try { set.add(icalToUtc(ex.trim(), tzid).toISOString().substring(0, 10)); } catch {}
+    }
   }
   return set;
 }
