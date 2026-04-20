@@ -38,7 +38,24 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
 
   const vevents = normalized.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
 
+  // Pre-pass: collect cancelled instances from STATUS:CANCELLED + RECURRENCE-ID blocks.
+  // Google Calendar (and others) represent individually-deleted occurrences this way
+  // rather than adding them to EXDATE on the main VEVENT.
+  const cancelledInstances = new Set(); // "uid:YYYY-MM-DD"
   for (const block of vevents) {
+    const getP = (key) => { const m = block.match(new RegExp(`^${key}(?:;[^:]*)?:(.+)$`, 'm')); return m ? m[1].trim() : null; };
+    if (getP('STATUS') !== 'CANCELLED') continue;
+    const uid   = getP('UID');
+    const recId = getP('RECURRENCE-ID');
+    if (!uid || !recId) continue;
+    const ds = recId.replace(/T.*/, ''); // first 8 chars: YYYYMMDD
+    cancelledInstances.add(`${uid}:${ds.substring(0,4)}-${ds.substring(4,6)}-${ds.substring(6,8)}`);
+  }
+
+  for (const block of vevents) {
+    // Skip cancelled instance overrides — they are not real events
+    const status = block.match(/^STATUS(?:;[^:]*)?:(.+)$/m)?.[1]?.trim();
+    if (status === 'CANCELLED') continue;
     // Get the value of a property (stripping any ;param=value parameters)
     const getProp = (key) => {
       const m = block.match(new RegExp(`^${key}(?:;[^:]*)?:(.+)$`, 'm'));
@@ -57,6 +74,7 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
     const rruleStr  = getProp('RRULE');
     const exdateStr = getProp('EXDATE');
     const dtend     = getProp('DTEND');
+    const uid       = getProp('UID') || '';
     const isAllDay  = /^\d{8}$/.test(dtstart);
 
     // Determine the timezone for this event's DTSTART
@@ -74,6 +92,7 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
       if (rruleStr) {
         // Recurring all-day: check if isoDate is a valid occurrence
         if (!isAllDayOccurrence(rawDate, endDate, rruleStr, exdateStr, isoDate)) continue;
+        if (cancelledInstances.has(`${uid}:${isoDate}`)) continue;
         rawDate = isoDate;
         start   = new Date(`${isoDate}T00:00:00`);
         end     = new Date(`${isoDate}T00:00:00`);
@@ -88,6 +107,7 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
         // Recurring timed event: find the single occurrence on isoDate
         const occ = getTimedOccurrenceOnDate(dtstart, eventTzid, rruleStr, exdateStr, dtend, isoDate, defaultTz);
         if (!occ) continue;
+        if (cancelledInstances.has(`${uid}:${isoDate}`)) continue;
         ({ start, end } = occ);
       } else {
         // Non-recurring timed event — pass through; orchestrator filters by date
