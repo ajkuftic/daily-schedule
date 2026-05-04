@@ -18,6 +18,27 @@
 const crypto = require('crypto');
 
 /**
+ * Reconstruct a well-formed PEM string regardless of how newlines were
+ * lost (JSON round-trips, textarea submission, DB storage, copy-paste).
+ * Extracts the PEM type and raw base64, then rewraps at 64 chars/line.
+ */
+function normalisePem(raw) {
+  // First apply any common escape conversions
+  const s = raw.replace(/\\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  // Extract type label and base64 content — works whether newlines are
+  // present or not because we strip all whitespace from the body.
+  const m = s.match(/-----BEGIN ([^-]+)-----\s*([\s\S]*?)\s*-----END ([^-]+)-----/);
+  if (!m) return s; // not a PEM — pass through and let OpenSSL error
+
+  const type  = m[1].trim();
+  const b64   = m[2].replace(/\s+/g, ''); // strip all whitespace from body
+  const lines = b64.match(/.{1,64}/g) || [];
+
+  return `-----BEGIN ${type}-----\n${lines.join('\n')}\n-----END ${type}-----\n`;
+}
+
+/**
  * Mint a short-lived access token using the service account JWT flow.
  */
 async function getAccessToken(credentials) {
@@ -34,16 +55,11 @@ async function getAccessToken(credentials) {
 
   const unsigned = `${header}.${payload}`;
 
-  // Aggressively normalise the PEM key — handles literal \n sequences,
-  // CRLF line endings, and other whitespace issues that survive storage
-  // round-trips or copy-paste from different operating systems.
-  const keyPem = (credentials.private_key || '')
-    .replace(/\\n/g, '\n')   // literal backslash-n → real newline
-    .replace(/\r\n/g, '\n')  // CRLF → LF
-    .replace(/\r/g, '\n');   // bare CR → LF
-
-  console.log('[storage:google-drive] Key header:', JSON.stringify(keyPem.substring(0, 40)));
-  console.log('[storage:google-drive] Key length:', keyPem.length, '| has newlines:', keyPem.includes('\n'));
+  // Normalise the PEM key.  Newlines can be lost at any point in the
+  // storage round-trip (JSON stringify/parse, DB, textarea submission).
+  // Strategy: collapse everything to no-whitespace, then reconstruct a
+  // standards-compliant PEM with 64-char base64 lines.
+  const keyPem = normalisePem(credentials.private_key || '');
 
   // Use the modern one-shot crypto.sign() API — more consistent with
   // PKCS#8 keys across OpenSSL versions than createSign().
