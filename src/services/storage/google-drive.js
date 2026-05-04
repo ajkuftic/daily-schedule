@@ -60,7 +60,9 @@ async function getAccessToken(credentials) {
  * Returns { id, url } where url is the Drive web view link.
  */
 async function upload(buffer, filename, config) {
-  const credentials = JSON.parse(config.storage_google_drive_credentials);
+  // db.getAllConfig() auto-parses JSON objects, so credentials may already be an object
+  const raw         = config.storage_google_drive_credentials;
+  const credentials = typeof raw === 'string' ? JSON.parse(raw) : raw;
   const folderId    = (config.storage_google_drive_folder_id || '').trim();
   const accessToken = await getAccessToken(credentials);
 
