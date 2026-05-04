@@ -32,10 +32,17 @@ async function getAccessToken(credentials) {
     iat:   now,
   })).toString('base64url');
 
-  const unsigned  = `${header}.${payload}`;
+  const unsigned = `${header}.${payload}`;
+
+  // Google service account keys are PKCS#8 PEM. createPrivateKey() handles
+  // this format reliably across OpenSSL versions. Also normalise any literal
+  // \n sequences that may survive JSON round-trips through the database.
+  const keyPem    = credentials.private_key.replace(/\\n/g, '\n');
+  const privateKey = crypto.createPrivateKey({ key: keyPem, format: 'pem' });
+
   const sign      = crypto.createSign('RSA-SHA256');
   sign.update(unsigned);
-  const signature = sign.sign(credentials.private_key, 'base64url');
+  const signature = sign.sign(privateKey, 'base64url');
   const jwt       = `${unsigned}.${signature}`;
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
