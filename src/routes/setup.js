@@ -397,4 +397,39 @@ router.post('/webhooks', (req, res) => {
   }
 });
 
+// ── STORAGE ───────────────────────────────────────────────────
+router.get('/storage', (req, res) => {
+  const config = db.getAllConfig();
+  res.render('setup-storage', { config, flash: req.query });
+});
+
+router.post('/storage', (req, res) => {
+  try {
+    const {
+      storage_provider,
+      storage_google_drive_credentials,
+      storage_google_drive_folder_id,
+      storage_local_keep,
+    } = req.body;
+
+    db.setConfig('storage_provider', storage_provider || '');
+
+    if (storage_google_drive_credentials && !storage_google_drive_credentials.startsWith('••')) {
+      // Validate it's parseable JSON with the expected fields
+      const creds = JSON.parse(storage_google_drive_credentials);
+      if (!creds.client_email || !creds.private_key) {
+        throw new Error('Service account JSON must contain client_email and private_key');
+      }
+      db.setConfig('storage_google_drive_credentials', storage_google_drive_credentials.trim());
+    }
+
+    db.setConfig('storage_google_drive_folder_id', storage_google_drive_folder_id || '');
+    db.setConfig('storage_local_keep', storage_local_keep || '30');
+
+    res.redirect('/setup/storage?saved=1');
+  } catch (err) {
+    errRedirect(res, '/setup/storage', err);
+  }
+});
+
 module.exports = router;

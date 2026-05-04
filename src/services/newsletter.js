@@ -5,6 +5,7 @@ const { fetchWeather }             = require('./weather');
 const { resolveWeatherLocation, buildClothingTip } = require('./location');
 const { enrichEventsWithBlurbs }   = require('./claude');
 const { generatePDF }              = require('./pdf');
+const { uploadPDF }                = require('./storage/index');
 const { sendEmail }                = require('./email/index');
 const { buildEmailHTML }           = require('../templates/email');
 const { buildPrintHTML }           = require('../templates/print');
@@ -125,6 +126,9 @@ async function sendDailyNewsletter(config) {
 
   db.logSend(isoDate, 'success', `Sent to ${sendTo}`);
   console.log(`[newsletter] Sent for ${dateStr}${pdf ? ' with PDF' : ''}`);
+
+  // ── Cloud / local storage ─────────────────────────────────────
+  if (pdf) uploadPDF(pdf.buffer, pdf.filename, config);
 
   // ── Outgoing webhook ──────────────────────────────────────────
   const webhookUrl = config.webhook_outgoing_url;

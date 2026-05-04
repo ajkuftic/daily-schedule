@@ -1,0 +1,95 @@
+<%- include('_head', { title: 'Storage' }) %>
+
+<h1>Storage</h1>
+<p class="subtitle">Automatically save each newsletter PDF to a cloud or local destination after every send.</p>
+
+<% if (flash.saved)  { %><div class="alert alert-success">Saved.</div><% } %>
+<% if (flash.error)  { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
+
+<form method="POST" action="/setup/storage" class="form">
+
+  <div class="form-group">
+    <label>Storage provider</label>
+    <select name="storage_provider" id="storage-provider" onchange="switchProvider(this.value)">
+      <option value=""              <%= !config.storage_provider                       ? 'selected' : '' %>>Disabled</option>
+      <option value="google-drive"  <%= config.storage_provider === 'google-drive'     ? 'selected' : '' %>>Google Drive (Service Account)</option>
+      <option value="local"         <%= config.storage_provider === 'local'            ? 'selected' : '' %>>Local filesystem</option>
+    </select>
+    <p class="field-hint">The PDF generated for each newsletter will be uploaded here in addition to being emailed.</p>
+  </div>
+
+  <!-- ── GOOGLE DRIVE ───────────────────────────────── -->
+  <div id="provider-google-drive" class="provider-section card" style="margin-top:20px;">
+    <h3>Google Drive setup</h3>
+
+    <details style="margin-bottom:20px;">
+      <summary class="btn btn-ghost btn-sm" style="display:inline-flex;align-items:center;gap:6px;">
+        Step-by-step instructions
+      </summary>
+      <div style="margin-top:14px;font-size:13px;line-height:1.7;">
+        <ol style="margin:0;padding-left:20px;">
+          <li>Go to <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> and create or select a project.</li>
+          <li>Navigate to <strong>APIs &amp; Services → Library</strong>, search for <strong>Google Drive API</strong>, and enable it.</li>
+          <li>Go to <strong>IAM &amp; Admin → Service Accounts</strong> and click <strong>Create Service Account</strong>. Give it any name (e.g. "newsletter-storage").</li>
+          <li>On the service account page, go to the <strong>Keys</strong> tab → <strong>Add Key → Create new key → JSON</strong>. A file will download.</li>
+          <li>Open the downloaded JSON file and paste its entire contents into the field below.</li>
+          <li>In Google Drive, create a folder for your newsletters. Open it, copy the folder ID from the URL (the long string after <code>/folders/</code>), and paste it below.</li>
+          <li>Right-click the Drive folder → <strong>Share</strong> → paste the <code>client_email</code> from the JSON as an Editor.</li>
+        </ol>
+      </div>
+    </details>
+
+    <div class="form-group">
+      <label>Service Account JSON</label>
+      <textarea name="storage_google_drive_credentials" rows="6"
+        placeholder='Paste the full contents of your service account JSON key file here'
+        style="width:100%;font-family:monospace;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);resize:vertical;background:#fff;color:var(--text);"
+      ><% if (config.storage_google_drive_credentials) { %>••••••••<% } %></textarea>
+      <p class="field-hint">Stored securely. Paste the full JSON to update it; leave as-is to keep the current key.</p>
+    </div>
+
+    <div class="form-group">
+      <label>Drive Folder ID <span class="hint">(optional — uploads to root if blank)</span></label>
+      <input type="text" name="storage_google_drive_folder_id"
+        value="<%= config.storage_google_drive_folder_id || '' %>"
+        placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
+      <p class="field-hint">Found in the folder's URL: <code>drive.google.com/drive/folders/<strong>THIS_PART</strong></code></p>
+    </div>
+  </div>
+
+  <!-- ── LOCAL FILESYSTEM ───────────────────────────── -->
+  <div id="provider-local" class="provider-section card" style="margin-top:20px;">
+    <h3>Local filesystem</h3>
+    <p class="muted" style="margin-bottom:16px;">PDFs are saved to <code>data/newsletters/</code> inside your data directory. Useful for Docker volume mounts or NAS shares.</p>
+
+    <div class="form-group">
+      <label>PDFs to keep</label>
+      <input type="number" name="storage_local_keep" min="1" max="365"
+        value="<%= config.storage_local_keep || '30' %>"
+        style="width:100px;">
+      <p class="field-hint">Older files are deleted automatically after each send.</p>
+    </div>
+  </div>
+
+  <div class="form-actions" style="margin-top:24px;">
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
+  </div>
+
+</form>
+
+<script>
+var PROVIDER_SECTIONS = ['google-drive', 'local'];
+
+function switchProvider(val) {
+  PROVIDER_SECTIONS.forEach(function(p) {
+    var el = document.getElementById('provider-' + p);
+    if (el) el.style.display = (val === p) ? 'block' : 'none';
+  });
+}
+
+// Init on load
+switchProvider(document.getElementById('storage-provider').value);
+</script>
+
+<%- include('_foot') %>
