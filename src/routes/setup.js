@@ -380,7 +380,7 @@ router.get('/webhooks', (req, res) => {
 
 router.post('/webhooks', (req, res) => {
   try {
-    const { action, webhook_outgoing_url } = req.body;
+    const { action, webhook_outgoing_url, webhook_distribution_url, webhook_distribution_secret } = req.body;
 
     if (action === 'regenerate') {
       const crypto = require('crypto');
@@ -389,6 +389,11 @@ router.post('/webhooks', (req, res) => {
 
     if (action === 'save-outgoing') {
       db.setConfig('webhook_outgoing_url', webhook_outgoing_url || '');
+    }
+
+    if (action === 'save-distribution') {
+      db.setConfig('webhook_distribution_url',    webhook_distribution_url    || '');
+      db.setConfig('webhook_distribution_secret', webhook_distribution_secret || '');
     }
 
     res.redirect('/setup/webhooks?saved=1');

@@ -41,7 +41,7 @@
 </div>
 
 <!-- ── OUTGOING ───────────────────────────────────────────── -->
-<div class="card">
+<div class="card" style="margin-bottom:24px;">
   <h3>Outgoing — Notify after each send</h3>
   <p class="muted">After each successful newsletter send, Daily Schedule will POST a JSON payload to this URL. Leave blank to disable.</p>
 
@@ -60,6 +60,38 @@
     <button type="submit" class="btn btn-primary">Save</button>
     <% if (config.webhook_outgoing_url) { %>
       <span class="field-hint" style="margin-left:12px;">Currently set to: <strong><%= config.webhook_outgoing_url %></strong></span>
+    <% } %>
+  </form>
+</div>
+
+<!-- ── DISTRIBUTION ──────────────────────────────────────── -->
+<div class="card">
+  <h3>Distribution — Deliver newsletter via webhook</h3>
+  <p class="muted">In addition to email, POST the full newsletter content to an endpoint on every send. Use this to push the newsletter to a custom display, Home Assistant dashboard, Discord bot, or any other integration.</p>
+
+  <form method="POST" action="/setup/webhooks" class="form" style="margin-top:16px;">
+    <input type="hidden" name="action" value="save-distribution">
+    <div class="form-group">
+      <label>Distribution URL</label>
+      <input type="url" name="webhook_distribution_url"
+        value="<%= config.webhook_distribution_url || '' %>"
+        placeholder="https://your-server.example.com/newsletter">
+    </div>
+    <div class="form-group">
+      <label>Secret / Token <span class="hint">(optional — sent as <code>Authorization: Bearer …</code>)</span></label>
+      <input type="text" name="webhook_distribution_secret"
+        value="<%= config.webhook_distribution_secret || '' %>"
+        placeholder="Leave blank if your endpoint needs no auth"
+        autocomplete="off">
+    </div>
+    <div class="callout" style="margin-bottom:16px;">
+      <strong>Payload sent:</strong><br>
+      <code>{"date":"2026-03-21","dateStr":"Saturday, March 21, 2026","subject":"Daily Smith – …","familyName":"Smith","html":"&lt;!DOCTYPE html&gt;…"}</code>
+      <p style="margin:8px 0 0;font-size:12px;">The <code>html</code> field contains the full email HTML — the same content that gets emailed to your family. Your endpoint can render it in an iframe, forward it to another service, or parse it however you like.</p>
+    </div>
+    <button type="submit" class="btn btn-primary">Save</button>
+    <% if (config.webhook_distribution_url) { %>
+      <span class="field-hint" style="margin-left:12px;">Currently delivering to: <strong><%= config.webhook_distribution_url %></strong></span>
     <% } %>
   </form>
 </div>
