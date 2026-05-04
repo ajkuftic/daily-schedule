@@ -130,7 +130,7 @@ async function sendDailyNewsletter(config) {
   // ── Cloud / local storage ─────────────────────────────────────
   if (pdf) uploadPDF(pdf.buffer, pdf.filename, config);
 
-  // ── Outgoing webhook ──────────────────────────────────────────
+  // ── Outgoing notify webhook ───────────────────────────────────
   const webhookUrl = config.webhook_outgoing_url;
   if (webhookUrl) {
     fetch(webhookUrl, {
@@ -139,6 +139,29 @@ async function sendDailyNewsletter(config) {
       body:    JSON.stringify({ date: isoDate, dateStr, status: 'success', subject, sentTo: sendTo }),
       signal:  AbortSignal.timeout(10_000),
     }).catch(err => console.error('[webhook] Outgoing notify failed:', err.message));
+  }
+
+  // ── Distribution webhook ──────────────────────────────────────
+  const distUrl    = config.webhook_distribution_url;
+  const distSecret = config.webhook_distribution_secret;
+  if (distUrl) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (distSecret) headers['Authorization'] = `Bearer ${distSecret}`;
+    const payload = {
+      date:       isoDate,
+      dateStr,
+      subject,
+      familyName,
+      html:       emailHtml,
+    };
+    fetch(distUrl, {
+      method:  'POST',
+      headers,
+      body:    JSON.stringify(payload),
+      signal:  AbortSignal.timeout(15_000),
+    })
+      .then(r => console.log(`[webhook] Distribution delivered — HTTP ${r.status}`))
+      .catch(err => console.error('[webhook] Distribution failed:', err.message));
   }
 }
 
