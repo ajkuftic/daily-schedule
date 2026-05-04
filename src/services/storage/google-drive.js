@@ -34,15 +34,21 @@ async function getAccessToken(credentials) {
 
   const unsigned = `${header}.${payload}`;
 
-  // Google service account keys are PKCS#8 PEM. createPrivateKey() handles
-  // this format reliably across OpenSSL versions. Also normalise any literal
-  // \n sequences that may survive JSON round-trips through the database.
-  const keyPem    = credentials.private_key.replace(/\\n/g, '\n');
-  const privateKey = crypto.createPrivateKey({ key: keyPem, format: 'pem' });
+  // Aggressively normalise the PEM key — handles literal \n sequences,
+  // CRLF line endings, and other whitespace issues that survive storage
+  // round-trips or copy-paste from different operating systems.
+  const keyPem = (credentials.private_key || '')
+    .replace(/\\n/g, '\n')   // literal backslash-n → real newline
+    .replace(/\r\n/g, '\n')  // CRLF → LF
+    .replace(/\r/g, '\n');   // bare CR → LF
 
-  const sign      = crypto.createSign('RSA-SHA256');
-  sign.update(unsigned);
-  const signature = sign.sign(privateKey, 'base64url');
+  console.log('[storage:google-drive] Key header:', JSON.stringify(keyPem.substring(0, 40)));
+  console.log('[storage:google-drive] Key length:', keyPem.length, '| has newlines:', keyPem.includes('\n'));
+
+  // Use the modern one-shot crypto.sign() API — more consistent with
+  // PKCS#8 keys across OpenSSL versions than createSign().
+  const sig       = crypto.sign('sha256', Buffer.from(unsigned), keyPem);
+  const signature = sig.toString('base64url');
   const jwt       = `${unsigned}.${signature}`;
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
