@@ -3,7 +3,8 @@
 <h1>Storage</h1>
 <p class="subtitle">Automatically save each newsletter PDF to a cloud or local destination after every send.</p>
 
-<% if (flash.saved)  { %><div class="alert alert-success">Saved.</div><% } %>
+<% if (flash.saved && flash.gdrive_connected) { %><div class="alert alert-success">Google Drive connected successfully!</div><% } %>
+<% if (flash.saved && !flash.gdrive_connected) { %><div class="alert alert-success">Saved.</div><% } %>
 <% if (flash.error)  { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
 <form method="POST" action="/setup/storage" class="form">
@@ -12,7 +13,7 @@
     <label>Storage provider</label>
     <select name="storage_provider" id="storage-provider" onchange="switchProvider(this.value)">
       <option value=""              <%= !config.storage_provider                       ? 'selected' : '' %>>Disabled</option>
-      <option value="google-drive"  <%= config.storage_provider === 'google-drive'     ? 'selected' : '' %>>Google Drive (Service Account)</option>
+      <option value="google-drive"  <%= config.storage_provider === 'google-drive'     ? 'selected' : '' %>>Google Drive (OAuth)</option>
       <option value="local"         <%= config.storage_provider === 'local'            ? 'selected' : '' %>>Local filesystem</option>
     </select>
     <p class="field-hint">The PDF generated for each newsletter will be uploaded here in addition to being emailed.</p>
@@ -30,26 +31,44 @@
         <ol style="margin:0;padding-left:20px;">
           <li>Go to <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> and create or select a project.</li>
           <li>Navigate to <strong>APIs &amp; Services → Library</strong>, search for <strong>Google Drive API</strong>, and enable it.</li>
-          <li>Go to <strong>IAM &amp; Admin → Service Accounts</strong> and click <strong>Create Service Account</strong>. Give it any name (e.g. "newsletter-storage").</li>
-          <li>On the service account page, go to the <strong>Keys</strong> tab → <strong>Add Key → Create new key → JSON</strong>. A file will download.</li>
-          <li>Open the downloaded JSON file and paste its entire contents into the field below.</li>
-          <li>In Google Drive, create a folder for your newsletters. Open it, copy the folder ID from the URL (the long string after <code>/folders/</code>), and paste it below.</li>
-          <li>Right-click the Drive folder → <strong>Share</strong> → paste the <code>client_email</code> from the JSON as an Editor.</li>
+          <li>Go to <strong>APIs &amp; Services → Credentials</strong> → <strong>Create Credentials → OAuth 2.0 Client ID</strong>.</li>
+          <li>Choose <strong>Web application</strong> as the application type.</li>
+          <li>Under <strong>Authorized redirect URIs</strong>, add: <code id="redirect-uri-hint">(your app URL)/setup/storage/google-drive/callback</code></li>
+          <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> and paste them below, then click <strong>Save</strong>.</li>
+          <li>Click <strong>Connect Google Drive</strong> below and authorise the app.</li>
+          <li>In Google Drive, create a folder for your newsletters. Copy the folder ID from the URL and paste it below.</li>
         </ol>
       </div>
     </details>
 
+    <% const connected = !!config.storage_google_drive_refresh_token; %>
+    <% if (connected) { %>
+    <div class="alert alert-success" style="margin-bottom:16px;">
+      ✓ Google Drive authorised. <a href="/setup/storage/google-drive/connect">Re-authorise</a>
+    </div>
+    <% } else { %>
+    <div class="alert" style="margin-bottom:16px;background:var(--cream);border:1px solid var(--border);color:var(--text);">
+      Not yet authorised — save your Client ID &amp; Secret below, then click <strong>Connect Google Drive</strong>.
+    </div>
+    <% } %>
+
     <div class="form-group">
-      <label>Service Account JSON</label>
-      <textarea name="storage_google_drive_credentials" rows="6"
-        placeholder='Paste the full contents of your service account JSON key file here'
-        style="width:100%;font-family:monospace;font-size:12px;padding:8px;border:1px solid var(--border);border-radius:var(--radius);resize:vertical;background:#fff;color:var(--text);"
-      ><% if (config.storage_google_drive_credentials) { %>••••••••<% } %></textarea>
-      <p class="field-hint">Stored securely. Paste the full JSON to update it; leave as-is to keep the current key.</p>
+      <label>Client ID</label>
+      <input type="text" name="storage_google_drive_client_id"
+        value="<%= config.storage_google_drive_client_id || '' %>"
+        placeholder="123456789-abc.apps.googleusercontent.com">
     </div>
 
     <div class="form-group">
-      <label>Drive Folder ID <span class="hint">(optional — uploads to root if blank)</span></label>
+      <label>Client Secret</label>
+      <input type="password" name="storage_google_drive_client_secret"
+        value="<%= config.storage_google_drive_client_secret || '' %>"
+        placeholder="GOCSPX-…"
+        autocomplete="new-password">
+    </div>
+
+    <div class="form-group">
+      <label>Drive Folder ID</label>
       <input type="text" name="storage_google_drive_folder_id"
         value="<%= config.storage_google_drive_folder_id || '' %>"
         placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
@@ -71,10 +90,18 @@
     </div>
   </div>
 
-  <div class="form-actions" style="margin-top:24px;">
+  <div class="form-actions" style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
     <button type="submit" class="btn btn-primary">Save</button>
+    <% if (config.storage_provider === 'google-drive') { %>
+    <a href="/setup/storage/google-drive/connect" class="btn btn-secondary" id="gdrive-connect-btn">
+      <%= connected ? 'Re-authorise Google Drive' : 'Connect Google Drive' %>
+    </a>
+    <button type="button" class="btn btn-ghost" id="test-upload-btn" onclick="testUpload()">Test Upload</button>
+    <% } %>
     <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
   </div>
+
+  <div id="test-result" style="margin-top:12px;display:none;"></div>
 
 </form>
 
@@ -90,6 +117,38 @@ function switchProvider(val) {
 
 // Init on load
 switchProvider(document.getElementById('storage-provider').value);
+
+// Show the redirect URI hint based on current page origin
+var hintEl = document.getElementById('redirect-uri-hint');
+if (hintEl) hintEl.textContent = window.location.origin + '/setup/storage/google-drive/callback';
+
+function testUpload() {
+  var btn = document.getElementById('test-upload-btn');
+  var out = document.getElementById('test-result');
+  btn.disabled = true;
+  btn.textContent = 'Testing…';
+  out.style.display = 'none';
+
+  fetch('/setup/storage/test', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.textContent = 'Test Upload';
+      out.style.display = 'block';
+      if (data.ok) {
+        out.innerHTML = '<div class="alert alert-success">Upload succeeded!' +
+          (data.url ? ' <a href="' + data.url + '" target="_blank">View file</a>' : '') + '</div>';
+      } else {
+        out.innerHTML = '<div class="alert alert-error">Upload failed: ' + (data.error || 'unknown error') + '</div>';
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = 'Test Upload';
+      out.style.display = 'block';
+      out.innerHTML = '<div class="alert alert-error">Request failed: ' + err.message + '</div>';
+    });
+}
 </script>
 
 <%- include('_foot') %>
