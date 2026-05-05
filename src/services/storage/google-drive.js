@@ -93,11 +93,21 @@ async function upload(buffer, filename, config) {
   const raw         = config.storage_google_drive_credentials;
   const credentials = typeof raw === 'string' ? JSON.parse(raw) : raw;
   const folderId    = (config.storage_google_drive_folder_id || '').trim();
+
+  // Service accounts have no storage quota of their own — files must be
+  // uploaded into a folder on a real user's Drive shared with the service account.
+  if (!folderId) {
+    throw new Error(
+      'Google Drive folder ID is required. Service accounts have no storage quota — ' +
+      'create a folder in your Drive, share it with the service account email, and paste the folder ID in Storage settings.'
+    );
+  }
+
   const accessToken = await getAccessToken(credentials);
 
   const metadata = JSON.stringify({
     name:    filename,
-    parents: folderId ? [folderId] : undefined,
+    parents: [folderId],
   });
 
   // Build multipart body: metadata part + binary PDF part
@@ -112,7 +122,7 @@ async function upload(buffer, filename, config) {
   const body       = Buffer.concat([metaBytes, dataHeader, buffer, closing]);
 
   const res = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink&supportsAllDrives=true',
     {
       method:  'POST',
       headers: {
