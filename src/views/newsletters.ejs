@@ -1,0 +1,115 @@
+<%- include('_head', { title: 'PDF Archive' }) %>
+
+<h1>PDF Archive</h1>
+<p class="subtitle">Past newsletter PDFs saved to storage. Links for S3-compatible storage expire after 7 days — click <em>Get Link</em> to generate a fresh one any time.</p>
+
+<% if (flash.deleted) { %><div class="alert alert-success">Record removed.</div><% } %>
+
+<% if (!uploads.length) { %>
+<div class="card" style="text-align:center;padding:40px;color:var(--muted);">
+  No PDFs on record yet. They'll appear here after the next newsletter send (when a storage provider is configured).
+</div>
+<% } else { %>
+<div class="card" style="padding:0;overflow:hidden;">
+  <table style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr style="background:var(--cream);border-bottom:1px solid var(--border);">
+        <th style="padding:12px 16px;text-align:left;font-size:13px;color:var(--muted);font-weight:600;">Date</th>
+        <th style="padding:12px 16px;text-align:left;font-size:13px;color:var(--muted);font-weight:600;">File</th>
+        <th style="padding:12px 16px;text-align:left;font-size:13px;color:var(--muted);font-weight:600;">Provider</th>
+        <th style="padding:12px 16px;text-align:right;font-size:13px;color:var(--muted);font-weight:600;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    <% uploads.forEach(function(u, i) { %>
+      <tr style="border-bottom:1px solid var(--border);<%= i % 2 === 1 ? 'background:var(--cream);' : '' %>">
+        <td style="padding:12px 16px;font-size:14px;white-space:nowrap;">
+          <% if (u.iso_date) { %>
+            <%= new Date(u.iso_date + 'T12:00:00Z').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric', timeZone:'UTC' }) %>
+          <% } else { %>
+            <span class="muted">—</span>
+          <% } %>
+        </td>
+        <td style="padding:12px 16px;font-size:13px;font-family:monospace;color:var(--muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<%= u.filename %>">
+          <%= u.filename %>
+        </td>
+        <td style="padding:12px 16px;">
+          <span style="font-size:12px;padding:2px 8px;border-radius:12px;background:var(--cream);border:1px solid var(--border);color:var(--muted);">
+            <%= u.provider %>
+          </span>
+        </td>
+        <td style="padding:12px 16px;text-align:right;white-space:nowrap;">
+          <% if (u.provider === 'google-drive' && u.drive_url) { %>
+            <a href="<%= u.drive_url %>" target="_blank" class="btn btn-ghost btn-sm">Open in Drive</a>
+          <% } else if (u.provider === 'local') { %>
+            <a href="/newsletters/files/<%= encodeURIComponent(u.filename) %>" target="_blank" class="btn btn-ghost btn-sm">View PDF</a>
+          <% } else { %>
+            <button class="btn btn-ghost btn-sm" onclick="getLink(<%= u.id %>)" id="link-btn-<%= u.id %>">Get Link</button>
+          <% } %>
+          <form method="POST" action="/newsletters/<%= u.id %>/delete" style="display:inline;"
+                onsubmit="return confirm('Remove this record? The file in storage will not be deleted.')">
+            <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--muted);">✕</button>
+          </form>
+        </td>
+      </tr>
+      <tr id="link-row-<%= u.id %>" style="display:none;background:var(--cream);">
+        <td colspan="4" style="padding:8px 16px 12px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="link-input-<%= u.id %>" readonly
+              style="flex:1;font-family:monospace;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius);background:var(--white);"
+              placeholder="Generating…">
+            <button class="btn btn-ghost btn-sm" onclick="copyLink(<%= u.id %>)">Copy</button>
+          </div>
+          <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">Link expires in 7 days. Click <em>Get Link</em> again to generate a fresh one.</p>
+        </td>
+      </tr>
+    <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<div style="margin-top:20px;">
+  <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
+</div>
+
+<script>
+function getLink(id) {
+  var btn     = document.getElementById('link-btn-' + id);
+  var row     = document.getElementById('link-row-' + id);
+  var input   = document.getElementById('link-input-' + id);
+
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  row.style.display = '';
+  input.value = '';
+
+  fetch('/newsletters/' + id + '/link', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.textContent = 'Refresh Link';
+      if (data.ok) {
+        input.value = data.url;
+      } else {
+        input.value = 'Error: ' + (data.error || 'unknown');
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = 'Get Link';
+      input.value = 'Request failed: ' + err.message;
+    });
+}
+
+function copyLink(id) {
+  var input = document.getElementById('link-input-' + id);
+  if (!input.value) return;
+  navigator.clipboard.writeText(input.value).catch(function() {
+    input.select();
+    document.execCommand('copy');
+  });
+}
+</script>
+
+<%- include('_foot') %>

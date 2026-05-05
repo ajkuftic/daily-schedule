@@ -12,7 +12,8 @@ const setupRoutes   = require('./routes/setup');
 const authRoutes    = require('./routes/auth');
 const apiRoutes     = require('./routes/api');
 const webhookRoutes = require('./routes/webhook');
-const logsRoutes    = require('./routes/logs');
+const logsRoutes         = require('./routes/logs');
+const newslettersRoutes  = require('./routes/newsletters');
 const requireAuth   = require('./middleware/requireAuth');
 const { startScheduler } = require('./scheduler');
 const db            = require('./db/index');
@@ -66,10 +67,11 @@ app.use((req, res, next) => {
 // Serve uploaded logos (authenticated)
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-app.use('/setup',   setupRoutes);
-app.use('/api',     apiRoutes);
-app.use('/logs',    logsRoutes);
-app.use('/webhook', webhookRoutes);
+app.use('/setup',       setupRoutes);
+app.use('/api',         apiRoutes);
+app.use('/logs',        logsRoutes);
+app.use('/newsletters', newslettersRoutes);
+app.use('/webhook',     webhookRoutes);
 
 // Root → dashboard
 app.get('/', (req, res) => res.redirect('/setup'));

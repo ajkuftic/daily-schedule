@@ -27,6 +27,16 @@ CREATE TABLE IF NOT EXISTS email_account (
   updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- PDF upload log (one row per newsletter PDF saved to storage)
+CREATE TABLE IF NOT EXISTS pdf_uploads (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  filename   TEXT NOT NULL,            -- e.g. "Daily Family Thursday April 17 2025.pdf"
+  iso_date   TEXT,                     -- newsletter date, e.g. "2025-04-17"
+  provider   TEXT NOT NULL,            -- 's3' | 'google-drive' | 'local'
+  drive_url  TEXT,                     -- webViewLink for Google Drive; null for others
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Delivery log
 CREATE TABLE IF NOT EXISTS send_log (
   id       INTEGER PRIMARY KEY AUTOINCREMENT,
