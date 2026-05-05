@@ -15,6 +15,7 @@
 
 const PROVIDERS = {
   'google-drive': require('./google-drive'),
+  's3':           require('./s3'),
   'local':        require('./local'),
 };
 
