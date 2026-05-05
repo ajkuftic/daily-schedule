@@ -418,13 +418,33 @@ router.post('/storage', (req, res) => {
       storage_google_drive_client_id,
       storage_google_drive_client_secret,
       storage_google_drive_folder_id,
+      storage_s3_sub_provider,
+      storage_s3_endpoint,
+      storage_s3_region,
+      storage_s3_bucket,
+      storage_s3_access_key_id,
+      storage_s3_secret_access_key,
       storage_local_keep,
     } = req.body;
 
     db.setConfig('storage_provider', storage_provider || '');
+
+    // Google Drive
     db.setConfig('storage_google_drive_client_id',     storage_google_drive_client_id     || '');
     db.setConfig('storage_google_drive_client_secret', storage_google_drive_client_secret || '');
     db.setConfig('storage_google_drive_folder_id',     storage_google_drive_folder_id     || '');
+
+    // S3-compatible
+    db.setConfig('storage_s3_sub_provider',      storage_s3_sub_provider      || '');
+    db.setConfig('storage_s3_endpoint',          storage_s3_endpoint          || '');
+    db.setConfig('storage_s3_region',            storage_s3_region            || '');
+    db.setConfig('storage_s3_bucket',            storage_s3_bucket            || '');
+    db.setConfig('storage_s3_access_key_id',     storage_s3_access_key_id     || '');
+    if (storage_s3_secret_access_key) {
+      db.setConfig('storage_s3_secret_access_key', storage_s3_secret_access_key);
+    }
+
+    // Local
     db.setConfig('storage_local_keep', storage_local_keep || '30');
 
     res.redirect('/setup/storage?saved=1');

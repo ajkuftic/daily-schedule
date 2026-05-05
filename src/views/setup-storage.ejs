@@ -12,16 +12,133 @@
   <div class="form-group">
     <label>Storage provider</label>
     <select name="storage_provider" id="storage-provider" onchange="switchProvider(this.value)">
-      <option value=""              <%= !config.storage_provider                       ? 'selected' : '' %>>Disabled</option>
-      <option value="google-drive"  <%= config.storage_provider === 'google-drive'     ? 'selected' : '' %>>Google Drive (OAuth)</option>
-      <option value="local"         <%= config.storage_provider === 'local'            ? 'selected' : '' %>>Local filesystem</option>
+      <option value=""             <%= !config.storage_provider                    ? 'selected' : '' %>>Disabled</option>
+      <option value="s3"           <%= config.storage_provider === 's3'            ? 'selected' : '' %>>S3-compatible (Cloudflare R2, Backblaze B2, AWS S3)</option>
+      <option value="google-drive" <%= config.storage_provider === 'google-drive'  ? 'selected' : '' %>>Google Drive (OAuth)</option>
+      <option value="local"        <%= config.storage_provider === 'local'         ? 'selected' : '' %>>Local filesystem</option>
     </select>
     <p class="field-hint">The PDF generated for each newsletter will be uploaded here in addition to being emailed.</p>
+  </div>
+
+  <!-- ── S3-COMPATIBLE ──────────────────────────────── -->
+  <div id="provider-s3" class="provider-section card" style="margin-top:20px;">
+    <h3>S3-compatible storage</h3>
+    <p class="muted" style="margin-bottom:16px;">Works with Cloudflare R2, Backblaze B2, AWS S3, and any other S3-compatible store. Uses API keys — no OAuth or Google verification required.</p>
+
+    <div class="form-group">
+      <label>Provider</label>
+      <select name="storage_s3_sub_provider" id="s3-sub-provider" onchange="switchS3Provider(this.value)">
+        <option value="r2"     <%= (config.storage_s3_sub_provider || 'r2') === 'r2'     ? 'selected' : '' %>>Cloudflare R2 (recommended — generous free tier)</option>
+        <option value="b2"     <%= config.storage_s3_sub_provider === 'b2'               ? 'selected' : '' %>>Backblaze B2</option>
+        <option value="s3"     <%= config.storage_s3_sub_provider === 's3'               ? 'selected' : '' %>>AWS S3</option>
+        <option value="custom" <%= config.storage_s3_sub_provider === 'custom'           ? 'selected' : '' %>>Custom / other</option>
+      </select>
+    </div>
+
+    <!-- Cloudflare R2 instructions -->
+    <details id="s3-instructions-r2" class="s3-instructions" style="margin-bottom:20px;">
+      <summary class="btn btn-ghost btn-sm" style="display:inline-flex;align-items:center;gap:6px;">
+        Step-by-step instructions — Cloudflare R2
+      </summary>
+      <div style="margin-top:14px;font-size:13px;line-height:1.7;">
+        <ol style="margin:0;padding-left:20px;">
+          <li>Log in to the <a href="https://dash.cloudflare.com/" target="_blank">Cloudflare dashboard</a> and open <strong>R2 Object Storage</strong> (left sidebar).</li>
+          <li>Click <strong>Create bucket</strong>, give it a name (e.g. <code>newsletters</code>), and choose a location. Leave other settings as defaults.</li>
+          <li>From the R2 overview page, click <strong>Manage R2 API Tokens → Create API Token</strong>.</li>
+          <li>Give the token a name, set <strong>Permissions</strong> to <em>Object Read &amp; Write</em>, and scope it to the bucket you just created. Click <strong>Create API Token</strong>.</li>
+          <li>Copy the <strong>Access Key ID</strong> and <strong>Secret Access Key</strong> — you won't see the secret again.</li>
+          <li>Your <strong>Endpoint</strong> is shown on the R2 overview page: <code>https://&lt;account-id&gt;.r2.cloudflarestorage.com</code></li>
+          <li>Set <strong>Region</strong> to <code>auto</code>.</li>
+          <li>Paste all values into the fields below and click <strong>Save</strong>, then use <strong>Test Upload</strong> to verify.</li>
+        </ol>
+      </div>
+    </details>
+
+    <!-- Backblaze B2 instructions -->
+    <details id="s3-instructions-b2" class="s3-instructions" style="margin-bottom:20px;">
+      <summary class="btn btn-ghost btn-sm" style="display:inline-flex;align-items:center;gap:6px;">
+        Step-by-step instructions — Backblaze B2
+      </summary>
+      <div style="margin-top:14px;font-size:13px;line-height:1.7;">
+        <ol style="margin:0;padding-left:20px;">
+          <li>Log in to <a href="https://www.backblaze.com/sign-in/" target="_blank">Backblaze</a> and go to <strong>B2 Cloud Storage → Buckets</strong>.</li>
+          <li>Click <strong>Create a Bucket</strong>. Set <em>Files in Bucket are</em> to <strong>Private</strong> (recommended). Note the bucket name.</li>
+          <li>After creation, click the bucket name and look for the <strong>Endpoint</strong> in the bucket details — it looks like <code>s3.us-west-004.backblazeb2.com</code>.</li>
+          <li>Go to <strong>Account → Application Keys → Add a New Application Key</strong>.</li>
+          <li>Restrict it to your bucket, set access to <em>Read and Write</em>, and click <strong>Create New Key</strong>.</li>
+          <li>Copy the <strong>keyID</strong> (Access Key ID) and <strong>applicationKey</strong> (Secret Access Key). You won't see the application key again.</li>
+          <li><strong>Endpoint:</strong> <code>https://&lt;region-from-step-3&gt;.backblazeb2.com</code> — e.g. <code>https://s3.us-west-004.backblazeb2.com</code></li>
+          <li><strong>Region:</strong> the region portion of the endpoint — e.g. <code>us-west-004</code></li>
+          <li>Paste all values into the fields below and click <strong>Save</strong>, then use <strong>Test Upload</strong> to verify.</li>
+        </ol>
+      </div>
+    </details>
+
+    <!-- AWS S3 instructions -->
+    <details id="s3-instructions-s3" class="s3-instructions" style="margin-bottom:20px;">
+      <summary class="btn btn-ghost btn-sm" style="display:inline-flex;align-items:center;gap:6px;">
+        Step-by-step instructions — AWS S3
+      </summary>
+      <div style="margin-top:14px;font-size:13px;line-height:1.7;">
+        <ol style="margin:0;padding-left:20px;">
+          <li>Log in to the <a href="https://s3.console.aws.amazon.com/" target="_blank">AWS S3 console</a> and click <strong>Create bucket</strong>.</li>
+          <li>Choose a unique bucket name and a region (e.g. <code>us-east-1</code>). Keep <em>Block all public access</em> enabled. Click <strong>Create bucket</strong>.</li>
+          <li>Go to <strong>IAM → Users → Create user</strong>. Give it a name (e.g. <code>newsletter-storage</code>).</li>
+          <li>On the permissions step, choose <strong>Attach policies directly</strong> and attach <code>AmazonS3FullAccess</code> — or create a scoped policy that allows <code>s3:PutObject</code> on just your bucket.</li>
+          <li>After creating the user, go to the user's <strong>Security credentials</strong> tab → <strong>Create access key → Other</strong>.</li>
+          <li>Copy the <strong>Access key ID</strong> and <strong>Secret access key</strong>.</li>
+          <li><strong>Endpoint:</strong> <code>https://s3.&lt;region&gt;.amazonaws.com</code> — e.g. <code>https://s3.us-east-1.amazonaws.com</code></li>
+          <li><strong>Region:</strong> the region you chose — e.g. <code>us-east-1</code></li>
+          <li>Paste all values into the fields below and click <strong>Save</strong>, then use <strong>Test Upload</strong> to verify.</li>
+        </ol>
+      </div>
+    </details>
+
+    <div class="form-group">
+      <label>Endpoint URL</label>
+      <input type="text" name="storage_s3_endpoint" id="s3-endpoint"
+        value="<%= config.storage_s3_endpoint || '' %>"
+        placeholder="https://…">
+      <p class="field-hint" id="s3-endpoint-hint"></p>
+    </div>
+
+    <div class="form-group">
+      <label>Region</label>
+      <input type="text" name="storage_s3_region" id="s3-region"
+        value="<%= config.storage_s3_region || '' %>"
+        placeholder="auto"
+        style="width:200px;">
+    </div>
+
+    <div class="form-group">
+      <label>Bucket name</label>
+      <input type="text" name="storage_s3_bucket"
+        value="<%= config.storage_s3_bucket || '' %>"
+        placeholder="newsletters">
+    </div>
+
+    <div class="form-group">
+      <label>Access Key ID</label>
+      <input type="text" name="storage_s3_access_key_id"
+        value="<%= config.storage_s3_access_key_id || '' %>"
+        placeholder="Access key / key ID"
+        autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label>Secret Access Key</label>
+      <input type="password" name="storage_s3_secret_access_key"
+        value="<%= config.storage_s3_secret_access_key || '' %>"
+        placeholder="Secret key"
+        autocomplete="new-password">
+      <p class="field-hint">Stored securely. Leave blank to keep the existing key.</p>
+    </div>
   </div>
 
   <!-- ── GOOGLE DRIVE ───────────────────────────────── -->
   <div id="provider-google-drive" class="provider-section card" style="margin-top:20px;">
     <h3>Google Drive setup</h3>
+    <p class="muted" style="margin-bottom:16px;">Uses OAuth 2.0 so uploads count against your Google account's storage quota. Requires a one-time authorisation through Google.</p>
 
     <details style="margin-bottom:20px;">
       <summary class="btn btn-ghost btn-sm" style="display:inline-flex;align-items:center;gap:6px;">
@@ -31,12 +148,12 @@
         <ol style="margin:0;padding-left:20px;">
           <li>Go to <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> and create or select a project.</li>
           <li>Navigate to <strong>APIs &amp; Services → Library</strong>, search for <strong>Google Drive API</strong>, and enable it.</li>
-          <li>Go to <strong>APIs &amp; Services → Credentials</strong> → <strong>Create Credentials → OAuth 2.0 Client ID</strong>.</li>
-          <li>Choose <strong>Web application</strong> as the application type.</li>
+          <li>Go to <strong>APIs &amp; Services → Credentials → Create Credentials → OAuth 2.0 Client ID</strong>. Choose <strong>Web application</strong>.</li>
           <li>Under <strong>Authorized redirect URIs</strong>, add: <code id="redirect-uri-hint">(your app URL)/setup/storage/google-drive/callback</code></li>
-          <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> and paste them below, then click <strong>Save</strong>.</li>
-          <li>Click <strong>Connect Google Drive</strong> below and authorise the app.</li>
-          <li>In Google Drive, create a folder for your newsletters. Copy the folder ID from the URL and paste it below.</li>
+          <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> and paste them below. Click <strong>Save</strong>.</li>
+          <li>Click <strong>Connect Google Drive</strong> and authorise the app.</li>
+          <li>In Google Drive, create a folder, copy its ID from the URL, and paste it below.</li>
+          <li><strong>Important:</strong> In the OAuth consent screen settings, set the app to <em>In production</em> (not Testing) so your authorisation token does not expire after 7 days.</li>
         </ol>
       </div>
     </details>
@@ -93,9 +210,11 @@
   <div class="form-actions" style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
     <button type="submit" class="btn btn-primary">Save</button>
     <% if (config.storage_provider === 'google-drive') { %>
-    <a href="/setup/storage/google-drive/connect" class="btn btn-secondary" id="gdrive-connect-btn">
+    <a href="/setup/storage/google-drive/connect" class="btn btn-secondary">
       <%= connected ? 'Re-authorise Google Drive' : 'Connect Google Drive' %>
     </a>
+    <% } %>
+    <% if (config.storage_provider === 's3' || config.storage_provider === 'google-drive' || config.storage_provider === 'local') { %>
     <button type="button" class="btn btn-ghost" id="test-upload-btn" onclick="testUpload()">Test Upload</button>
     <% } %>
     <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
@@ -106,7 +225,15 @@
 </form>
 
 <script>
-var PROVIDER_SECTIONS = ['google-drive', 'local'];
+var PROVIDER_SECTIONS = ['s3', 'google-drive', 'local'];
+
+var S3_HINTS = {
+  r2:     'https://<account-id>.r2.cloudflarestorage.com',
+  b2:     'https://s3.<region>.backblazeb2.com',
+  s3:     'https://s3.<region>.amazonaws.com',
+  custom: '',
+};
+var S3_REGIONS = { r2: 'auto', b2: '', s3: 'us-east-1', custom: '' };
 
 function switchProvider(val) {
   PROVIDER_SECTIONS.forEach(function(p) {
@@ -115,12 +242,29 @@ function switchProvider(val) {
   });
 }
 
+function switchS3Provider(val) {
+  // Show/hide instruction blocks
+  ['r2','b2','s3','custom'].forEach(function(p) {
+    var el = document.getElementById('s3-instructions-' + p);
+    if (el) el.style.display = (val === p) ? '' : 'none';
+  });
+
+  // Update endpoint placeholder and hint
+  var epEl   = document.getElementById('s3-endpoint');
+  var hintEl = document.getElementById('s3-endpoint-hint');
+  var rgEl   = document.getElementById('s3-region');
+  if (epEl && !epEl.value) epEl.placeholder = S3_HINTS[val] || 'https://…';
+  if (hintEl) hintEl.textContent = S3_HINTS[val] ? 'e.g. ' + S3_HINTS[val] : '';
+  if (rgEl && !rgEl.value && S3_REGIONS[val]) rgEl.placeholder = S3_REGIONS[val];
+}
+
 // Init on load
 switchProvider(document.getElementById('storage-provider').value);
+switchS3Provider(document.getElementById('s3-sub-provider').value);
 
 // Show the redirect URI hint based on current page origin
-var hintEl = document.getElementById('redirect-uri-hint');
-if (hintEl) hintEl.textContent = window.location.origin + '/setup/storage/google-drive/callback';
+var redirectEl = document.getElementById('redirect-uri-hint');
+if (redirectEl) redirectEl.textContent = window.location.origin + '/setup/storage/google-drive/callback';
 
 function testUpload() {
   var btn = document.getElementById('test-upload-btn');
