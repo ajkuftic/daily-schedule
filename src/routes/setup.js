@@ -403,6 +403,9 @@ router.post('/webhooks', (req, res) => {
 });
 
 // ── STORAGE ───────────────────────────────────────────────────
+const { buildAuthUrl, exchangeCode } = require('../services/storage/google-drive');
+const { uploadPDF } = require('../services/storage/index');
+
 router.get('/storage', (req, res) => {
   const config = db.getAllConfig();
   res.render('setup-storage', { config, flash: req.query });
@@ -412,28 +415,82 @@ router.post('/storage', (req, res) => {
   try {
     const {
       storage_provider,
-      storage_google_drive_credentials,
+      storage_google_drive_client_id,
+      storage_google_drive_client_secret,
       storage_google_drive_folder_id,
       storage_local_keep,
     } = req.body;
 
     db.setConfig('storage_provider', storage_provider || '');
-
-    if (storage_google_drive_credentials && !storage_google_drive_credentials.startsWith('••')) {
-      // Validate it's parseable JSON with the expected fields
-      const creds = JSON.parse(storage_google_drive_credentials);
-      if (!creds.client_email || !creds.private_key) {
-        throw new Error('Service account JSON must contain client_email and private_key');
-      }
-      db.setConfig('storage_google_drive_credentials', storage_google_drive_credentials.trim());
-    }
-
-    db.setConfig('storage_google_drive_folder_id', storage_google_drive_folder_id || '');
+    db.setConfig('storage_google_drive_client_id',     storage_google_drive_client_id     || '');
+    db.setConfig('storage_google_drive_client_secret', storage_google_drive_client_secret || '');
+    db.setConfig('storage_google_drive_folder_id',     storage_google_drive_folder_id     || '');
     db.setConfig('storage_local_keep', storage_local_keep || '30');
 
     res.redirect('/setup/storage?saved=1');
   } catch (err) {
     errRedirect(res, '/setup/storage', err);
+  }
+});
+
+// ── GOOGLE DRIVE OAUTH FLOW ───────────────────────────────────
+function gdriveRedirectUri(req) {
+  // Build an absolute redirect URI from the incoming request so it works
+  // regardless of host, port, or reverse-proxy prefix.
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  const host  = req.headers['x-forwarded-host']  || req.get('host');
+  return `${proto}://${host}/setup/storage/google-drive/callback`;
+}
+
+router.get('/storage/google-drive/connect', (req, res) => {
+  const clientId = db.getConfig('storage_google_drive_client_id');
+  if (!clientId) {
+    return res.redirect('/setup/storage?error=' + encodeURIComponent('Save your Client ID first'));
+  }
+  res.redirect(buildAuthUrl(clientId, gdriveRedirectUri(req)));
+});
+
+router.get('/storage/google-drive/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error) {
+    return res.redirect('/setup/storage?error=' + encodeURIComponent(`Google auth denied: ${error}`));
+  }
+  if (!code) {
+    return res.redirect('/setup/storage?error=' + encodeURIComponent('No authorisation code returned'));
+  }
+  try {
+    const clientId     = db.getConfig('storage_google_drive_client_id');
+    const clientSecret = db.getConfig('storage_google_drive_client_secret');
+    const tokens = await exchangeCode(code, clientId, clientSecret, gdriveRedirectUri(req));
+    db.setConfig('storage_google_drive_refresh_token', tokens.refresh_token);
+    res.redirect('/setup/storage?saved=1&gdrive_connected=1');
+  } catch (err) {
+    errRedirect(res, '/setup/storage', err);
+  }
+});
+
+// ── STORAGE TEST UPLOAD ───────────────────────────────────────
+router.post('/storage/test', async (req, res) => {
+  try {
+    const config = db.getAllConfig();
+    // Build a tiny PDF-like buffer — just enough to verify the upload path works.
+    // We use a real minimal PDF so Drive accepts it without complaint.
+    const testPdf = Buffer.from(
+      '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj ' +
+      '2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj ' +
+      '3 0 obj<</Type/Page/MediaBox[0 0 100 100]/Parent 2 0 R>>endobj\n' +
+      'xref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n' +
+      '0000000058 00000 n\n0000000115 00000 n\n' +
+      'trailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF'
+    );
+    const filename = `test-upload-${Date.now()}.pdf`;
+    const result   = await uploadPDF(testPdf, filename, config);
+    if (!result) {
+      return res.json({ ok: false, error: 'Storage provider not configured or upload returned null' });
+    }
+    res.json({ ok: true, url: result.url || result.path || 'uploaded' });
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
   }
 });
 

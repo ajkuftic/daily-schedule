@@ -1,87 +1,93 @@
 'use strict';
 
 /**
- * Google Drive storage provider — uses a Service Account (no OAuth browser flow).
+ * Google Drive storage provider — uses OAuth 2.0 (user credentials).
  *
- * Required config keys:
- *   storage_google_drive_credentials  JSON string of the service account key file
- *   storage_google_drive_folder_id    (optional) Drive folder ID to upload into
+ * Service accounts cannot upload to regular My Drive folders because they
+ * have no storage quota. OAuth uses the authorising user's quota instead,
+ * which works for any Drive folder they own.
+ *
+ * Required config keys (set via the setup page OAuth flow):
+ *   storage_google_drive_client_id      OAuth 2.0 client ID
+ *   storage_google_drive_client_secret  OAuth 2.0 client secret
+ *   storage_google_drive_refresh_token  Persisted after first authorisation
+ *   storage_google_drive_folder_id      Drive folder ID to upload into
  *
  * Setup:
  *   1. Google Cloud Console → APIs & Services → Enable "Google Drive API"
- *   2. IAM & Admin → Service Accounts → Create → Download JSON key
- *   3. Paste the JSON into the setup page
- *   4. Share your Drive folder with the service account email (Editor access)
- *   5. Copy the folder ID from the folder URL and paste it into the setup page
+ *   2. APIs & Services → Credentials → Create → OAuth 2.0 Client ID → Web application
+ *   3. Add <your-app-url>/setup/storage/google-drive/callback as an Authorized redirect URI
+ *   4. Copy Client ID and Client Secret into the setup page and save
+ *   5. Click "Connect Google Drive" and authorise the app
+ *   6. Create a Drive folder, share its ID in the setup page
  */
 
-const crypto = require('crypto');
+const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
 /**
- * Reconstruct a well-formed PEM string regardless of how newlines were
- * lost (JSON round-trips, textarea submission, DB storage, copy-paste).
- * Extracts the PEM type and raw base64, then rewraps at 64 chars/line.
+ * Exchange a stored refresh_token for a short-lived access_token.
  */
-function normalisePem(raw) {
-  // First apply any common escape conversions
-  const s = raw.replace(/\\n/g, '\n').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-  // Extract type label and base64 content — works whether newlines are
-  // present or not because we strip all whitespace from the body.
-  const m = s.match(/-----BEGIN ([^-]+)-----\s*([\s\S]*?)\s*-----END ([^-]+)-----/);
-  if (!m) return s; // not a PEM — pass through and let OpenSSL error
-
-  const type  = m[1].trim();
-  const b64   = m[2].replace(/\s+/g, ''); // strip all whitespace from body
-  const lines = b64.match(/.{1,64}/g) || [];
-
-  return `-----BEGIN ${type}-----\n${lines.join('\n')}\n-----END ${type}-----\n`;
-}
-
-/**
- * Mint a short-lived access token using the service account JWT flow.
- */
-async function getAccessToken(credentials) {
-  const now = Math.floor(Date.now() / 1000);
-
-  const header  = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify({
-    iss:   credentials.client_email,
-    scope: 'https://www.googleapis.com/auth/drive.file',
-    aud:   'https://oauth2.googleapis.com/token',
-    exp:   now + 3600,
-    iat:   now,
-  })).toString('base64url');
-
-  const unsigned = `${header}.${payload}`;
-
-  // Normalise the PEM key.  Newlines can be lost at any point in the
-  // storage round-trip (JSON stringify/parse, DB, textarea submission).
-  // Strategy: collapse everything to no-whitespace, then reconstruct a
-  // standards-compliant PEM with 64-char base64 lines.
-  const keyPem = normalisePem(credentials.private_key || '');
-
-  // Use the modern one-shot crypto.sign() API — more consistent with
-  // PKCS#8 keys across OpenSSL versions than createSign().
-  const sig       = crypto.sign('sha256', Buffer.from(unsigned), keyPem);
-  const signature = sig.toString('base64url');
-  const jwt       = `${unsigned}.${signature}`;
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+async function getAccessToken(config) {
+  const res = await fetch(TOKEN_URL, {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body:    new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion:  jwt,
+      client_id:     config.storage_google_drive_client_id,
+      client_secret: config.storage_google_drive_client_secret,
+      refresh_token: config.storage_google_drive_refresh_token,
+      grant_type:    'refresh_token',
     }),
     signal: AbortSignal.timeout(15_000),
   });
-
   const data = await res.json();
   if (!data.access_token) {
-    throw new Error(`Google auth failed: ${data.error_description || data.error || JSON.stringify(data)}`);
+    throw new Error(
+      `Google token refresh failed: ${data.error_description || data.error || JSON.stringify(data)}`
+    );
   }
   return data.access_token;
+}
+
+/**
+ * Build the Google OAuth authorisation URL to redirect the user to.
+ * prompt=consent ensures a refresh_token is always returned.
+ */
+function buildAuthUrl(clientId, redirectUri) {
+  const params = new URLSearchParams({
+    client_id:     clientId,
+    redirect_uri:  redirectUri,
+    response_type: 'code',
+    scope:         'https://www.googleapis.com/auth/drive.file',
+    access_type:   'offline',
+    prompt:        'consent',
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+}
+
+/**
+ * Exchange a one-time authorisation code for access + refresh tokens.
+ * Returns the full token response object (contains refresh_token).
+ */
+async function exchangeCode(code, clientId, clientSecret, redirectUri) {
+  const res = await fetch(TOKEN_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body:    new URLSearchParams({
+      code,
+      client_id:     clientId,
+      client_secret: clientSecret,
+      redirect_uri:  redirectUri,
+      grant_type:    'authorization_code',
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const data = await res.json();
+  if (!data.refresh_token) {
+    throw new Error(
+      `Token exchange failed: ${data.error_description || data.error || JSON.stringify(data)}`
+    );
+  }
+  return data;
 }
 
 /**
@@ -89,26 +95,16 @@ async function getAccessToken(credentials) {
  * Returns { id, url } where url is the Drive web view link.
  */
 async function upload(buffer, filename, config) {
-  // db.getAllConfig() auto-parses JSON objects, so credentials may already be an object
-  const raw         = config.storage_google_drive_credentials;
-  const credentials = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  const folderId    = (config.storage_google_drive_folder_id || '').trim();
-
-  // Service accounts have no storage quota of their own — files must be
-  // uploaded into a folder on a real user's Drive shared with the service account.
+  const folderId = (config.storage_google_drive_folder_id || '').trim();
   if (!folderId) {
     throw new Error(
-      'Google Drive folder ID is required. Service accounts have no storage quota — ' +
-      'create a folder in your Drive, share it with the service account email, and paste the folder ID in Storage settings.'
+      'Google Drive folder ID is required. Create a folder in your Drive and paste its ID in Storage settings.'
     );
   }
 
-  const accessToken = await getAccessToken(credentials);
+  const accessToken = await getAccessToken(config);
 
-  const metadata = JSON.stringify({
-    name:    filename,
-    parents: [folderId],
-  });
+  const metadata = JSON.stringify({ name: filename, parents: [folderId] });
 
   // Build multipart body: metadata part + binary PDF part
   const boundary   = `newsletter_${Date.now()}`;
@@ -118,16 +114,16 @@ async function upload(buffer, filename, config) {
   const dataHeader = Buffer.from(
     `--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`,
   );
-  const closing    = Buffer.from(`\r\n--${boundary}--`);
-  const body       = Buffer.concat([metaBytes, dataHeader, buffer, closing]);
+  const closing = Buffer.from(`\r\n--${boundary}--`);
+  const body    = Buffer.concat([metaBytes, dataHeader, buffer, closing]);
 
   const res = await fetch(
     'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink&supportsAllDrives=true',
     {
       method:  'POST',
       headers: {
-        Authorization:  `Bearer ${accessToken}`,
-        'Content-Type': `multipart/related; boundary=${boundary}`,
+        Authorization:    `Bearer ${accessToken}`,
+        'Content-Type':   `multipart/related; boundary=${boundary}`,
         'Content-Length': String(body.length),
       },
       body,
@@ -145,7 +141,12 @@ async function upload(buffer, filename, config) {
 }
 
 function isConfigured(config) {
-  return !!(config.storage_provider === 'google-drive' && config.storage_google_drive_credentials);
+  return !!(
+    config.storage_provider === 'google-drive' &&
+    config.storage_google_drive_client_id &&
+    config.storage_google_drive_client_secret &&
+    config.storage_google_drive_refresh_token
+  );
 }
 
-module.exports = { upload, isConfigured };
+module.exports = { upload, isConfigured, buildAuthUrl, exchangeCode };
