@@ -37,4 +37,30 @@ async function uploadPDF(buffer, filename, config) {
   }
 }
 
-module.exports = { uploadPDF, PROVIDERS };
+/**
+ * Generate a download link for a previously uploaded file.
+ *
+ * - S3-compatible: returns a fresh pre-signed URL (expires in 7 days)
+ * - Google Drive:  returns the stored webViewLink (permanent, requires Google sign-in)
+ * - Local:         returns an app-served URL path  (/newsletters/files/<filename>)
+ *
+ * @param {string} filename  - the stored filename
+ * @param {string} provider  - storage provider key
+ * @param {object} config    - full app config (for S3 credentials)
+ * @param {string} driveUrl  - pre-stored Drive webViewLink (Google Drive only)
+ * @returns {string|null}    - URL string or null if unsupported
+ */
+function generateLink(filename, provider, config, driveUrl) {
+  if (provider === 's3') {
+    return PROVIDERS['s3'].presignUrl(filename, config);
+  }
+  if (provider === 'google-drive') {
+    return driveUrl || null;
+  }
+  if (provider === 'local') {
+    return `/newsletters/files/${encodeURIComponent(filename)}`;
+  }
+  return null;
+}
+
+module.exports = { uploadPDF, generateLink, PROVIDERS };

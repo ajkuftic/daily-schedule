@@ -110,6 +110,23 @@ function updateEmailCredentials(credentials) {
   );
 }
 
+// ── PDF UPLOAD LOG ────────────────────────────────────────────
+function logPdfUpload(filename, isoDate, provider, driveUrl) {
+  db.prepare(
+    'INSERT INTO pdf_uploads (filename, iso_date, provider, drive_url) VALUES (?, ?, ?, ?)'
+  ).run(filename, isoDate || null, provider, driveUrl || null);
+}
+
+function getPdfUploads(limit = 100) {
+  return db.prepare(
+    'SELECT * FROM pdf_uploads ORDER BY created_at DESC LIMIT ?'
+  ).all(limit);
+}
+
+function deletePdfUpload(id) {
+  db.prepare('DELETE FROM pdf_uploads WHERE id = ?').run(id);
+}
+
 // ── SEND LOG HELPERS ──────────────────────────────────────────
 function logSend(date, status, details) {
   db.prepare('INSERT INTO send_log (date, status, details) VALUES (?, ?, ?)').run(date, status, details || null);
@@ -156,6 +173,9 @@ module.exports = {
   getEmailAccount,
   upsertEmailAccount,
   updateEmailCredentials,
+  logPdfUpload,
+  getPdfUploads,
+  deletePdfUpload,
   logSend,
   getRecentLogs,
   getLogs,

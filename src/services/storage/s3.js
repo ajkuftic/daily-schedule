@@ -115,6 +115,68 @@ async function upload(buffer, filename, config) {
   return { url: objectUrl };
 }
 
+/**
+ * Generate a pre-signed GET URL for a stored object.
+ * The URL is self-contained and expires after `expirySeconds` (default 7 days).
+ * No network call is made — signing is pure crypto.
+ *
+ * @param {string} filename      - the object key / filename
+ * @param {object} config        - app config (same shape as upload())
+ * @param {number} expirySeconds - link lifetime in seconds (max 604800 for B2)
+ */
+function presignUrl(filename, config, expirySeconds = 604800) {
+  const endpoint  = (config.storage_s3_endpoint        || '').replace(/\/$/, '');
+  const region    = (config.storage_s3_region           || 'auto').trim();
+  const bucket    = (config.storage_s3_bucket           || '').trim();
+  const accessKey = (config.storage_s3_access_key_id    || '').trim();
+  const secretKey = (config.storage_s3_secret_access_key || '').trim();
+
+  const key       = filename.split('/').map(encodeURIComponent).join('/');
+  const objectUrl = `${endpoint}/${bucket}/${key}`;
+  const urlObj    = new URL(objectUrl);
+  const host      = urlObj.hostname;
+  const path      = urlObj.pathname;
+
+  const now     = new Date();
+  const amzDate = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+  const dateStr = amzDate.substring(0, 8);
+
+  const credScope  = `${dateStr}/${region}/s3/aws4_request`;
+  const credential = `${accessKey}/${credScope}`;
+
+  // Query parameters must be sorted alphabetically for the canonical request
+  const qp = new URLSearchParams([
+    ['X-Amz-Algorithm',     'AWS4-HMAC-SHA256'],
+    ['X-Amz-Credential',    credential],
+    ['X-Amz-Date',          amzDate],
+    ['X-Amz-Expires',       String(expirySeconds)],
+    ['X-Amz-SignedHeaders', 'host'],
+  ]);
+  qp.sort();
+
+  const canonRequest = [
+    'GET',
+    path,
+    qp.toString(),
+    `host:${host}\n`,   // canonical headers (trailing newline required)
+    'host',             // signed headers
+    'UNSIGNED-PAYLOAD',
+  ].join('\n');
+
+  const stringToSign = [
+    'AWS4-HMAC-SHA256',
+    amzDate,
+    credScope,
+    sha256Hex(canonRequest),
+  ].join('\n');
+
+  const signingKey = getSigningKey(secretKey, dateStr, region, 's3');
+  const signature  = hmac(signingKey, stringToSign).toString('hex');
+
+  qp.append('X-Amz-Signature', signature);
+  return `${objectUrl}?${qp.toString()}`;
+}
+
 function isConfigured(config) {
   return !!(
     config.storage_provider === 's3' &&
@@ -125,4 +187,4 @@ function isConfigured(config) {
   );
 }
 
-module.exports = { upload, isConfigured };
+module.exports = { upload, presignUrl, isConfigured };

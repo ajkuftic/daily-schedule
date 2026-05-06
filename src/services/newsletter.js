@@ -5,7 +5,7 @@ const { fetchWeather }             = require('./weather');
 const { resolveWeatherLocation, buildClothingTip } = require('./location');
 const { enrichEventsWithBlurbs }   = require('./claude');
 const { generatePDF }              = require('./pdf');
-const { uploadPDF }                = require('./storage/index');
+const { uploadPDF, generateLink }  = require('./storage/index');
 const { sendEmail }                = require('./email/index');
 const { buildEmailHTML }           = require('../templates/email');
 const { buildPrintHTML }           = require('../templates/print');
@@ -128,15 +128,24 @@ async function sendDailyNewsletter(config) {
   console.log(`[newsletter] Sent for ${dateStr}${pdf ? ' with PDF' : ''}`);
 
   // ── Cloud / local storage ─────────────────────────────────────
-  if (pdf) uploadPDF(pdf.buffer, pdf.filename, config);
+  let pdfUrl = null;
+  if (pdf) {
+    const uploadResult = await uploadPDF(pdf.buffer, pdf.filename, config);
+    if (uploadResult) {
+      pdfUrl = generateLink(pdf.filename, config.storage_provider, config, uploadResult.url);
+      db.logPdfUpload(pdf.filename, isoDate, config.storage_provider, uploadResult.url || null);
+    }
+  }
 
   // ── Outgoing notify webhook ───────────────────────────────────
   const webhookUrl = config.webhook_outgoing_url;
   if (webhookUrl) {
+    const notifyPayload = { date: isoDate, dateStr, status: 'success', subject, sentTo: sendTo };
+    if (pdfUrl) notifyPayload.pdfUrl = pdfUrl;
     fetch(webhookUrl, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ date: isoDate, dateStr, status: 'success', subject, sentTo: sendTo }),
+      body:    JSON.stringify(notifyPayload),
       signal:  AbortSignal.timeout(10_000),
     }).catch(err => console.error('[webhook] Outgoing notify failed:', err.message));
   }
