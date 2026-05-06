@@ -141,6 +141,7 @@ h3 { font-size: 15px; font-weight: 600; margin: 0 0 12px; color: var(--text); }
 .badge-smtp     { background: #d1fae5; color: #065f46; }
 .badge-success  { background: #d1fae5; color: #065f46; }
 .badge-error    { background: #fef2f2; color: #991b1b; }
+.badge-test     { background: #fef3c7; color: #92400e; }
 
 /* ── TABLE ───────────────────────────────────── */
 .table { width: 100%; border-collapse: collapse; font-size: 14px; }
