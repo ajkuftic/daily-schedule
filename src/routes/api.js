@@ -25,6 +25,27 @@ router.post('/send-now', async (req, res) => {
   }
 });
 
+// POST /api/send-test — full send to a single address only (no printer, no webhooks)
+router.post('/send-test', async (req, res) => {
+  try {
+    const config = db.getAllConfig();
+    if (!config.setup_complete) {
+      return res.status(400).json({ error: 'Setup not complete' });
+    }
+    const testEmail = (req.body.email || '').trim();
+    if (!testEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmail)) {
+      return res.status(400).json({ error: 'A valid email address is required' });
+    }
+    sendDailyNewsletter(config, { testEmail }).catch(err => {
+      console.error('[api] send-test error:', err.message);
+      db.logSend(new Date().toISOString().substring(0, 10), 'error', `Test send failed: ${err.message}`);
+    });
+    res.json({ ok: true, message: `Test send started → ${testEmail}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/status — recent send log + config summary
 router.get('/status', (req, res) => {
   const config = db.getAllConfig();

@@ -85,18 +85,22 @@ async function buildNewsletterContent(config, { targetDate } = {}) {
 
 /**
  * Build and send the daily newsletter.
- * Called by the scheduler and the "Send Now" API.
+ * Called by the scheduler and the "Send Now" / "Test Send" APIs.
  *
- * @param {object} config   - result of db.getAllConfig()
- * @returns {Promise<void>}
+ * @param {object} config              - result of db.getAllConfig()
+ * @param {object} [options]
+ * @param {string} [options.testEmail] - if set, send only to this address; skips
+ *                                       printer CC, storage upload, and webhooks
+ * @param {string} [options.targetDate] - override the newsletter date (YYYY-MM-DD)
  */
-async function sendDailyNewsletter(config) {
+async function sendDailyNewsletter(config, { testEmail, targetDate } = {}) {
+  const isTest     = !!testEmail;
   const familyName = config.family_name || 'Family';
-  const sendTo     = config.send_to;
+  const sendTo     = isTest ? testEmail : config.send_to;
   const fromName   = config.from_name || `The Daily ${familyName}`;
 
   const { emailHtml, printHtml, isoDate, dateStr, credentialUpdates } =
-    await buildNewsletterContent(config);
+    await buildNewsletterContent(config, { targetDate });
 
   // Persist any refreshed calendar OAuth tokens
   for (const { accountId, credentials } of credentialUpdates) {
@@ -104,8 +108,9 @@ async function sendDailyNewsletter(config) {
   }
 
   // ── Generate PDF ──────────────────────────────────────────────
-  const subject  = `Daily ${familyName} \u2013 ${dateStr}`;
-  const pdfLabel = `Daily ${familyName} ${dateStr}`;
+  const subjectBase = `Daily ${familyName} – ${dateStr}`;
+  const subject     = isTest ? `[TEST] ${subjectBase}` : subjectBase;
+  const pdfLabel    = `Daily ${familyName} ${dateStr}`;
   const pdf = await generatePDF(printHtml, pdfLabel, config.html2pdf_api_key);
 
   // ── Send email ────────────────────────────────────────────────
@@ -113,7 +118,8 @@ async function sendDailyNewsletter(config) {
   if (!emailAccount) throw new Error('No email account configured');
 
   const attachments = pdf ? [pdf] : [];
-  const cc = pdf && config.epson_connect_email ? config.epson_connect_email : undefined;
+  // Skip printer CC on test sends
+  const cc = !isTest && pdf && config.epson_connect_email ? config.epson_connect_email : undefined;
 
   const { refreshedCredentials: refreshedEmailCreds } = await sendEmail({
     emailAccount, to: sendTo, subject, htmlBody: emailHtml, fromName, attachments, cc,
@@ -124,12 +130,12 @@ async function sendDailyNewsletter(config) {
     console.log('[newsletter] Gmail token refreshed and persisted');
   }
 
-  db.logSend(isoDate, 'success', `Sent to ${sendTo}`);
-  console.log(`[newsletter] Sent for ${dateStr}${pdf ? ' with PDF' : ''}`);
+  db.logSend(isoDate, isTest ? 'test' : 'success', `${isTest ? 'Test send' : 'Sent'} to ${sendTo}`);
+  console.log(`[newsletter] ${isTest ? 'Test send' : 'Sent'} for ${dateStr} → ${sendTo}${pdf ? ' with PDF' : ''}`);
 
-  // ── Cloud / local storage ─────────────────────────────────────
+  // ── Cloud / local storage (skipped for test sends) ────────────
   let pdfUrl = null;
-  if (pdf) {
+  if (pdf && !isTest) {
     const uploadResult = await uploadPDF(pdf.buffer, pdf.filename, config);
     if (uploadResult) {
       pdfUrl = generateLink(pdf.filename, config.storage_provider, config, uploadResult.url);
@@ -137,40 +143,42 @@ async function sendDailyNewsletter(config) {
     }
   }
 
-  // ── Outgoing notify webhook ───────────────────────────────────
-  const webhookUrl = config.webhook_outgoing_url;
-  if (webhookUrl) {
-    const notifyPayload = { date: isoDate, dateStr, status: 'success', subject, sentTo: sendTo };
-    if (pdfUrl) notifyPayload.pdfUrl = pdfUrl;
-    fetch(webhookUrl, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(notifyPayload),
-      signal:  AbortSignal.timeout(10_000),
-    }).catch(err => console.error('[webhook] Outgoing notify failed:', err.message));
-  }
+  // ── Outgoing notify webhook (skipped for test sends) ──────────
+  if (!isTest) {
+    const webhookUrl = config.webhook_outgoing_url;
+    if (webhookUrl) {
+      const notifyPayload = { date: isoDate, dateStr, status: 'success', subject, sentTo: sendTo };
+      if (pdfUrl) notifyPayload.pdfUrl = pdfUrl;
+      fetch(webhookUrl, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(notifyPayload),
+        signal:  AbortSignal.timeout(10_000),
+      }).catch(err => console.error('[webhook] Outgoing notify failed:', err.message));
+    }
 
-  // ── Distribution webhook ──────────────────────────────────────
-  const distUrl    = config.webhook_distribution_url;
-  const distSecret = config.webhook_distribution_secret;
-  if (distUrl) {
-    const headers = { 'Content-Type': 'application/json' };
-    if (distSecret) headers['Authorization'] = `Bearer ${distSecret}`;
-    const payload = {
-      date:       isoDate,
-      dateStr,
-      subject,
-      familyName,
-      html:       emailHtml,
-    };
-    fetch(distUrl, {
-      method:  'POST',
-      headers,
-      body:    JSON.stringify(payload),
-      signal:  AbortSignal.timeout(15_000),
-    })
-      .then(r => console.log(`[webhook] Distribution delivered — HTTP ${r.status}`))
-      .catch(err => console.error('[webhook] Distribution failed:', err.message));
+    // ── Distribution webhook ────────────────────────────────────
+    const distUrl    = config.webhook_distribution_url;
+    const distSecret = config.webhook_distribution_secret;
+    if (distUrl) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (distSecret) headers['Authorization'] = `Bearer ${distSecret}`;
+      const payload = {
+        date:       isoDate,
+        dateStr,
+        subject,
+        familyName,
+        html:       emailHtml,
+      };
+      fetch(distUrl, {
+        method:  'POST',
+        headers,
+        body:    JSON.stringify(payload),
+        signal:  AbortSignal.timeout(15_000),
+      })
+        .then(r => console.log(`[webhook] Distribution delivered — HTTP ${r.status}`))
+        .catch(err => console.error('[webhook] Distribution failed:', err.message));
+    }
   }
 }
 
