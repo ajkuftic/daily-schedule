@@ -14,7 +14,7 @@ const nodemailer = require('nodemailer');
  *   from:     'user@fastmail.com',  // defaults to user if omitted
  * }
  */
-async function sendSMTP({ credentials, to, subject, htmlBody, fromName, attachments = [], cc }) {
+async function sendSMTP({ credentials, to, subject, htmlBody, textBody, fromName, attachments = [], cc }) {
   const port   = credentials.port || 587;
   const secure = port === 465;       // 465 = implicit SSL, 587/25 = STARTTLS
 
@@ -36,7 +36,8 @@ async function sendSMTP({ credentials, to, subject, htmlBody, fromName, attachme
     to,
     cc,
     subject,
-    html:        htmlBody,
+    html:        htmlBody || undefined,
+    text:        textBody || undefined,
     attachments: attachments.map(a => ({
       filename:    a.filename,
       content:     a.buffer,

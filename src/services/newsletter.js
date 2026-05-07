@@ -7,6 +7,7 @@ const { enrichEventsWithBlurbs }   = require('./claude');
 const { generatePDF }              = require('./pdf');
 const { uploadPDF, generateLink }  = require('./storage/index');
 const { sendEmail }                = require('./email/index');
+const { sendIftttEmail }           = require('./ifttt');
 const { buildEmailHTML }           = require('../templates/email');
 const { buildPrintHTML }           = require('../templates/print');
 const db = require('../db/index');
@@ -16,7 +17,7 @@ const db = require('../db/index');
  * Used by both sendDailyNewsletter and the preview route.
  *
  * @param {object} config   - result of db.getAllConfig()
- * @returns {Promise<{ emailHtml, printHtml, isoDate, dateStr, credentialUpdates }>}
+ * @returns {Promise<{ emailHtml, printHtml, isoDate, dateStr, weather, renderEvents, clothingTip, credentialUpdates }>}
  */
 async function buildNewsletterContent(config, { targetDate } = {}) {
   const timezone   = config.timezone || 'America/New_York';
@@ -80,7 +81,7 @@ async function buildNewsletterContent(config, { targetDate } = {}) {
   const emailHtml = buildEmailHTML({ dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName, branding });
   const printHtml = buildPrintHTML({ dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName, branding });
 
-  return { emailHtml, printHtml, isoDate, dateStr, credentialUpdates };
+  return { emailHtml, printHtml, isoDate, dateStr, weather, renderEvents, clothingTip, timezone, credentialUpdates };
 }
 
 /**
@@ -99,7 +100,7 @@ async function sendDailyNewsletter(config, { testEmail, targetDate } = {}) {
   const sendTo     = isTest ? testEmail : config.send_to;
   const fromName   = config.from_name || `The Daily ${familyName}`;
 
-  const { emailHtml, printHtml, isoDate, dateStr, credentialUpdates } =
+  const { emailHtml, printHtml, isoDate, dateStr, weather, renderEvents, clothingTip, timezone, credentialUpdates } =
     await buildNewsletterContent(config, { targetDate });
 
   // Persist any refreshed calendar OAuth tokens
@@ -178,6 +179,20 @@ async function sendDailyNewsletter(config, { testEmail, targetDate } = {}) {
       })
         .then(r => console.log(`[webhook] Distribution delivered — HTTP ${r.status}`))
         .catch(err => console.error('[webhook] Distribution failed:', err.message));
+    }
+
+    // ── IFTTT trigger email ─────────────────────────────────────
+    if (config.ifttt_enabled === '1') {
+      sendIftttEmail({
+        emailAccount,
+        fromName,
+        dateStr,
+        weather,
+        events: renderEvents,
+        clothingTip,
+        pdf,
+        timezone,
+      }).catch(err => console.error('[ifttt] Trigger email failed:', err.message));
     }
   }
 }
