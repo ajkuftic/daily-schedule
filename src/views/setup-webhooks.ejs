@@ -96,6 +96,49 @@
   </form>
 </div>
 
+<!-- ── IFTTT ────────────────────────────────────────────────── -->
+<div class="card" style="margin-top:24px;">
+  <h3>IFTTT — Email trigger</h3>
+  <p class="muted">After each send, email <code>trigger@applet.ifttt.com</code> with a plain-text summary and the PDF attached. Set up an IFTTT applet using the <strong>Email</strong> trigger to forward it to a push notification, smart display, or any other service.</p>
+
+  <form method="POST" action="/setup/webhooks" class="form" style="margin-top:16px;">
+    <input type="hidden" name="action" value="save-ifttt">
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+        <input type="checkbox" name="ifttt_enabled" value="1" <%= config.ifttt_enabled === '1' ? 'checked' : '' %>>
+        Enable IFTTT trigger email
+      </label>
+      <p class="field-hint">The trigger email is sent from your configured email account to <code>trigger@applet.ifttt.com</code> after every real send (not test sends).</p>
+    </div>
+
+    <details style="margin-bottom:20px;">
+      <summary class="btn btn-ghost btn-sm" style="display:inline-flex;align-items:center;gap:6px;">
+        Step-by-step IFTTT setup
+      </summary>
+      <div style="margin-top:14px;font-size:13px;line-height:1.7;">
+        <ol style="margin:0;padding-left:20px;">
+          <li>Log in to <a href="https://ifttt.com" target="_blank">IFTTT</a> and click <strong>Create</strong>.</li>
+          <li>For <strong>If This</strong>, choose the <strong>Email</strong> service → <strong>Send IFTTT an email</strong>.</li>
+          <li>Connect the Email service — IFTTT will confirm the email address you use. <strong>That address must match the From address of your configured email account</strong> so IFTTT recognises the sender.</li>
+          <li>For <strong>Then That</strong>, choose whatever action you like — e.g. <em>Notifications → Send a rich notification from the IFTTT app</em>, or <em>Google Drive → Add file from URL</em>.</li>
+          <li>In the action, use IFTTT ingredients: <code>{{Subject}}</code> for the newsletter date, <code>{{Body}}</code> for the plain-text summary, and <code>{{AttachmentUrl}}</code> if a PDF was attached.</li>
+          <li>Enable the toggle above and save. The trigger email will be sent after the next scheduled send.</li>
+        </ol>
+      </div>
+    </details>
+
+    <div class="callout" style="margin-bottom:16px;">
+      <strong>Email format:</strong><br>
+      <strong>To:</strong> <code>trigger@applet.ifttt.com</code><br>
+      <strong>Subject:</strong> <code>{From Name} - {date of newsletter}</code> — e.g. <em>The Daily Smith - Wednesday May 7 2026</em><br>
+      <strong>Body:</strong> Plain text — weather (condition, high/low in °F and °C, rain chance), clothing tip, and full schedule with times<br>
+      <strong>Attachment:</strong> The newsletter PDF (available as <code>{{AttachmentUrl}}</code> in IFTTT)
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+  </form>
+</div>
+
 <div class="form-actions" style="margin-top:24px;">
   <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
 </div>

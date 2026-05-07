@@ -396,6 +396,10 @@ router.post('/webhooks', (req, res) => {
       db.setConfig('webhook_distribution_secret', webhook_distribution_secret || '');
     }
 
+    if (action === 'save-ifttt') {
+      db.setConfig('ifttt_enabled', req.body.ifttt_enabled === '1' ? '1' : '');
+    }
+
     res.redirect('/setup/webhooks?saved=1');
   } catch (err) {
     errRedirect(res, '/setup/webhooks', err);
