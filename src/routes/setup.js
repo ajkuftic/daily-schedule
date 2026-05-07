@@ -97,10 +97,11 @@ router.get('/api-keys', (req, res) => {
 
 router.post('/api-keys', (req, res) => {
   try {
-    const { claude_api_key, html2pdf_api_key, epson_connect_email } = req.body;
+    const { claude_api_key, html2pdf_api_key, epson_connect_email, epson_enabled } = req.body;
     if (claude_api_key   && !claude_api_key.startsWith('••'))   db.setConfig('claude_api_key',   claude_api_key);
     if (html2pdf_api_key && !html2pdf_api_key.startsWith('••')) db.setConfig('html2pdf_api_key', html2pdf_api_key);
     db.setConfig('epson_connect_email', epson_connect_email || '');
+    db.setConfig('epson_enabled', epson_enabled === '1' ? '1' : '');
     res.redirect('/setup/api-keys?saved=1');
   } catch (err) {
     errRedirect(res, '/setup/api-keys', err);
