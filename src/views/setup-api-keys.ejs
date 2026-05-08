@@ -43,6 +43,13 @@
         value="<%= config.epson_connect_email || '' %>"
         placeholder="xxxxxxxxxx@print.epsonconnect.com">
     </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+        <input type="checkbox" name="epson_enabled" value="1" <%= config.epson_enabled === '1' ? 'checked' : '' %>>
+        Enable auto-print
+      </label>
+      <p class="field-hint">Uncheck to temporarily disable printing without removing the printer address.</p>
+    </div>
   </div>
 
   <div class="form-actions">

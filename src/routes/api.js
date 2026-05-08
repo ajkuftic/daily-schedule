@@ -3,6 +3,7 @@
 const express = require('express');
 const db      = require('../db/index');
 const { sendDailyNewsletter, buildNewsletterContent } = require('../services/newsletter');
+const { sendIftttEmail } = require('../services/ifttt');
 const { reschedule }          = require('../scheduler');
 
 const router = express.Router();
@@ -43,6 +44,33 @@ router.post('/send-test', async (req, res) => {
     res.json({ ok: true, message: `Test send started → ${testEmail}` });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/test-ifttt — fire a real IFTTT trigger email using live data
+router.post('/test-ifttt', async (req, res) => {
+  try {
+    const config = db.getAllConfig();
+    if (!config.setup_complete) {
+      return res.status(400).json({ ok: false, error: 'Setup not complete' });
+    }
+    const emailAccount = db.getEmailAccount();
+    if (!emailAccount) {
+      return res.status(400).json({ ok: false, error: 'No email account configured' });
+    }
+
+    // Build live content (same pipeline as a real send) then fire IFTTT immediately
+    const { weather, renderEvents, clothingTip, dateStr, timezone } =
+      await buildNewsletterContent(config);
+
+    const familyName = config.family_name || 'Family';
+    const fromName   = config.from_name   || `The Daily ${familyName}`;
+
+    await sendIftttEmail({ emailAccount, fromName, dateStr, weather, events: renderEvents, clothingTip, pdf: null, timezone });
+
+    res.json({ ok: true, message: `IFTTT trigger email sent for ${dateStr}` });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 

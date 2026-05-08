@@ -135,7 +135,11 @@
       <strong>Attachment:</strong> The newsletter PDF (available as <code>{{AttachmentUrl}}</code> in IFTTT)
     </div>
 
-    <button type="submit" class="btn btn-primary">Save</button>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <button type="submit" class="btn btn-primary">Save</button>
+      <button type="button" class="btn btn-ghost" id="testIftttBtn" onclick="testIfttt()">Test IFTTT</button>
+    </div>
+    <div id="ifttt-test-result" style="margin-top:10px;font-size:13px;display:none;"></div>
   </form>
 </div>
 
@@ -169,5 +173,32 @@
   word-break: break-all;
 }
 </style>
+
+<script>
+function testIfttt() {
+  var btn = document.getElementById('testIftttBtn');
+  var out = document.getElementById('ifttt-test-result');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  out.style.display = 'none';
+
+  fetch('/api/test-ifttt', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.textContent = 'Test IFTTT';
+      out.style.display = '';
+      out.style.color = data.ok ? 'var(--text)' : 'var(--error,#c00)';
+      out.textContent = data.ok ? ('✓ ' + data.message) : ('Error: ' + (data.error || 'unknown'));
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = 'Test IFTTT';
+      out.style.display = '';
+      out.style.color = 'var(--error,#c00)';
+      out.textContent = 'Request failed: ' + err.message;
+    });
+}
+</script>
 
 <%- include('_foot') %>

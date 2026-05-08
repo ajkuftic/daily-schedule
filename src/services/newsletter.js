@@ -119,8 +119,10 @@ async function sendDailyNewsletter(config, { testEmail, targetDate } = {}) {
   if (!emailAccount) throw new Error('No email account configured');
 
   const attachments = pdf ? [pdf] : [];
-  // Skip printer CC on test sends
-  const cc = !isTest && pdf && config.epson_connect_email ? config.epson_connect_email : undefined;
+  // Skip printer CC on test sends or when Epson printing is disabled
+  const cc = !isTest && pdf && config.epson_connect_email && config.epson_enabled === '1'
+    ? config.epson_connect_email
+    : undefined;
 
   const { refreshedCredentials: refreshedEmailCreds } = await sendEmail({
     emailAccount, to: sendTo, subject, htmlBody: emailHtml, fromName, attachments, cc,
