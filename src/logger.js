@@ -19,14 +19,33 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Patterns for values that should never appear verbatim in logs
+const REDACT_PATTERNS = [
+  /sk-ant-[a-zA-Z0-9\-_]{10,}/g,          // Anthropic API key
+  /Bearer\s+[a-zA-Z0-9\-_.~+/]{20,}/g,    // OAuth bearer tokens
+  /ya29\.[a-zA-Z0-9\-_]{20,}/g,           // Google access token
+  /1\/\/[a-zA-Z0-9\-_]{20,}/g,            // Google refresh token
+  /"password"\s*:\s*"[^"]+"/g,            // JSON password field
+  /"secret[^"]*"\s*:\s*"[^"]+"/gi,        // JSON secret field
+  /"api[_-]?key[^"]*"\s*:\s*"[^"]+"/gi,  // JSON API key field
+];
+
+function sanitize(text) {
+  let out = text;
+  for (const pattern of REDACT_PATTERNS) {
+    out = out.replace(pattern, m => m.replace(/:.+/, ': "[REDACTED]"').replace(/Bearer .+/, 'Bearer [REDACTED]').replace(/sk-ant-.+/, 'sk-ant-[REDACTED]').replace(/ya29\..+/, 'ya29.[REDACTED]').replace(/1\/.+/, '1/[REDACTED]'));
+  }
+  return out;
+}
+
 function serialize(args) {
-  return args.map(a => {
+  return sanitize(args.map(a => {
     if (a instanceof Error) return a.stack || a.message;
     if (typeof a === 'object' && a !== null) {
       try { return JSON.stringify(a); } catch { return String(a); }
     }
     return String(a);
-  }).join(' ');
+  }).join(' '));
 }
 
 function appendLine(level, text) {

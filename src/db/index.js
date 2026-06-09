@@ -3,6 +3,7 @@
 const path = require('path');
 const fs   = require('fs');
 const Database = require('better-sqlite3');
+const { encrypt, decrypt } = require('../crypto');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
 const DB_PATH  = path.join(DATA_DIR, 'daily-schedule.db');
@@ -21,6 +22,16 @@ db.exec(schema);
 try { db.exec('ALTER TABLE calendar_accounts ADD COLUMN blurbs_enabled INTEGER DEFAULT 1'); } catch {}
 
 
+// Config keys whose values are stored encrypted at rest
+const SENSITIVE_CONFIG_KEYS = new Set([
+  'claude_api_key',
+  'html2pdf_api_key',
+  'storage_s3_secret_access_key',
+  'storage_google_drive_client_secret',
+  'storage_google_drive_refresh_token',
+  'webhook_distribution_secret',
+]);
+
 // ── CONFIG HELPERS ────────────────────────────────────────────
 // Only JSON-parse values that are objects or arrays — leave plain strings as-is.
 // This prevents '0'/'1' being parsed to numbers, which breaks strict === comparisons in templates.
@@ -34,16 +45,18 @@ function tryParseConfig(str) {
 function getConfig(key) {
   const row = db.prepare('SELECT value FROM config WHERE key = ?').get(key);
   if (!row) return undefined;
-  return tryParseConfig(row.value);
+  const raw = SENSITIVE_CONFIG_KEYS.has(key) ? decrypt(row.value) : row.value;
+  return tryParseConfig(raw);
 }
 
 function setConfig(key, value) {
   const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+  const stored = SENSITIVE_CONFIG_KEYS.has(key) ? encrypt(serialized) : serialized;
   db.prepare(`
     INSERT INTO config (key, value, updated_at)
     VALUES (?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).run(key, serialized);
+  `).run(key, stored);
 }
 
 function getAllConfig() {
@@ -63,6 +76,7 @@ function getCalendarAccount(id) {
 
 function upsertCalendarAccount(data) {
   const { id, name, provider, is_reminder, blurbs_enabled, credentials, metadata } = data;
+  const encCredentials = encrypt(JSON.stringify(credentials));
   if (id) {
     db.prepare(`
       UPDATE calendar_accounts
@@ -70,13 +84,13 @@ function upsertCalendarAccount(data) {
           updated_at=CURRENT_TIMESTAMP
       WHERE id=?
     `).run(name, provider, is_reminder ? 1 : 0, blurbs_enabled == null ? 1 : (blurbs_enabled ? 1 : 0),
-      JSON.stringify(credentials), JSON.stringify(metadata), id);
+      encCredentials, JSON.stringify(metadata), id);
     return id;
   }
   const result = db.prepare(`
     INSERT INTO calendar_accounts (name, provider, is_reminder, blurbs_enabled, credentials, metadata)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).run(name, provider, is_reminder ? 1 : 0, 1, JSON.stringify(credentials), JSON.stringify(metadata));
+  `).run(name, provider, is_reminder ? 1 : 0, 1, encCredentials, JSON.stringify(metadata));
   return result.lastInsertRowid;
 }
 
@@ -100,13 +114,13 @@ function upsertEmailAccount(data) {
   // Replace entirely
   db.prepare('DELETE FROM email_account').run();
   db.prepare('INSERT INTO email_account (provider, credentials) VALUES (?, ?)').run(
-    provider, JSON.stringify(credentials)
+    provider, encrypt(JSON.stringify(credentials))
   );
 }
 
 function updateEmailCredentials(credentials) {
   db.prepare('UPDATE email_account SET credentials = ? WHERE id = (SELECT id FROM email_account ORDER BY id DESC LIMIT 1)').run(
-    JSON.stringify(credentials)
+    encrypt(JSON.stringify(credentials))
   );
 }
 
@@ -152,10 +166,12 @@ function clearLogs() {
 // ── INTERNAL ──────────────────────────────────────────────────
 function parseJsonFields(row) {
   const out = { ...row };
-  for (const field of ['credentials', 'metadata']) {
-    if (out[field]) {
-      try { out[field] = JSON.parse(out[field]); } catch { /* leave as string */ }
-    }
+  // credentials may be encrypted; metadata is not
+  if (out.credentials) {
+    try { out.credentials = JSON.parse(decrypt(out.credentials)); } catch { /* leave as string */ }
+  }
+  if (out.metadata) {
+    try { out.metadata = JSON.parse(out.metadata); } catch { /* leave as string */ }
   }
   return out;
 }

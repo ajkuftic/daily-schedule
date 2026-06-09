@@ -29,6 +29,7 @@
             <td><%= a.is_reminder ? 'Yes' : 'No' %></td>
             <td>
               <form method="POST" action="/setup/calendars/<%= a.id %>/blurbs" style="display:inline;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="blurbs_enabled" value="0">
                 <input type="checkbox" name="blurbs_enabled" value="1" title="Enable AI blurbs for this calendar"
                   <%= a.blurbs_enabled !== 0 ? 'checked' : '' %>
@@ -38,6 +39,7 @@
             <td style="white-space:nowrap;">
               <a href="/setup/calendars/<%= a.id %>/edit" class="btn btn-sm btn-ghost">Edit</a>
               <form method="POST" action="/setup/calendars/delete/<%= a.id %>" style="display:inline;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this calendar?')">Remove</button>
               </form>
             </td>
@@ -58,6 +60,7 @@
     <details>
       <summary class="btn btn-ghost">Add CalDAV account</summary>
       <form method="POST" action="/setup/calendars/caldav" class="form" style="margin-top:16px;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
         <div class="form-group">
           <label>Provider</label>
@@ -114,6 +117,7 @@
       </div>
 
       <form method="POST" action="/setup/calendars/ics" class="form" style="margin-top:16px;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div class="form-group">
           <label>Display Name</label>
           <input type="text" name="name" placeholder="US Holidays" required>

@@ -4,9 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %> — Daily Schedule</title>
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
   <script>(function(){var t=localStorage.getItem('ds-theme');if(t)document.documentElement.setAttribute('data-theme',t);})()</script>
   <link rel="stylesheet" href="/style.css">
   <style>:root { --navy: <%= branding.primary %>; --gold: <%= branding.accent %>; }</style>
+  <script>function getCsrfToken(){return document.querySelector('meta[name="csrf-token"]')?.content||'';}</script>
 </head>
 <body>
 <nav class="nav">
@@ -27,6 +29,7 @@
     <span class="nav-divider"></span>
     <a href="/auth/set-password" class="nav-link-muted">Password</a>
     <form method="POST" action="/auth/logout" style="display:inline;">
+      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
       <button type="submit" class="btn-nav-logout">Sign out</button>
     </form>
   </div>

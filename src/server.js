@@ -7,6 +7,7 @@ const path    = require('path');
 const express = require('express');
 const session          = require('express-session');
 const BetterSqliteStore = require('./db/session-store');
+const { csrfMiddleware } = require('./middleware/csrf');
 
 const setupRoutes   = require('./routes/setup');
 const authRoutes    = require('./routes/auth');
@@ -24,6 +25,15 @@ const DATA_DIR    = process.env.DATA_DIR || path.join(__dirname, '../data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const PORT        = parseInt(process.env.PORT || '3000', 10);
 
+// ── STARTUP VALIDATION ────────────────────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret === 'change-me') {
+    console.error('FATAL: SESSION_SECRET must be set to a strong random value in production. Refusing to start.');
+    process.exit(1);
+  }
+}
+
 // Ensure uploads directory exists
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
@@ -38,13 +48,31 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 app.use(session({
   store:  new BetterSqliteStore(require('./db/index').db),
   secret: process.env.SESSION_SECRET || 'change-me',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }, // 1 week
+  cookie: {
+    maxAge:   7 * 24 * 60 * 60 * 1000, // 1 week
+    httpOnly: true,
+    sameSite: 'lax',
+    secure:   isProduction,
+  },
 }));
+
+// CSRF token generation + validation (must come after session)
+app.use(csrfMiddleware);
+
+// HSTS — instruct browsers to always use HTTPS
+if (isProduction) {
+  app.use((req, res, next) => {
+    res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+    next();
+  });
+}
 
 // ── ROUTES ────────────────────────────────────────────────────
 app.use('/auth',    authRoutes);           // login/logout before auth guard

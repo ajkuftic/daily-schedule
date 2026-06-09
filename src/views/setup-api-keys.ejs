@@ -7,6 +7,7 @@
 <% if (flash.error)  { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
 <form method="POST" action="/setup/api-keys" class="form">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
   <div class="card">
     <h3>Anthropic (Claude)</h3>

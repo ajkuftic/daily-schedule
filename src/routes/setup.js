@@ -8,9 +8,32 @@ const nodemailer = require('nodemailer');
 const { DAVClient } = require('tsdav');
 const db         = require('../db/index');
 const { reschedule } = require('../scheduler');
+const { validateCsrf } = require('../middleware/csrf');
 
 const DATA_DIR    = process.env.DATA_DIR || path.join(__dirname, '../../data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+
+// Magic-byte signatures for allowed image types
+const IMAGE_MAGIC = [
+  { mime: 'image/png',  bytes: [0x89, 0x50, 0x4e, 0x47] },
+  { mime: 'image/jpeg', bytes: [0xff, 0xd8, 0xff] },
+  { mime: 'image/gif',  bytes: [0x47, 0x49, 0x46, 0x38] },
+  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46] }, // RIFF header
+];
+
+function validateImageMagicBytes(filePath, mimetype) {
+  const fd  = fs.openSync(filePath, 'r');
+  const buf = Buffer.alloc(8);
+  fs.readSync(fd, buf, 0, 8, 0);
+  fs.closeSync(fd);
+
+  // SVG is XML text — skip binary magic check, rely on MIME filter
+  if (mimetype === 'image/svg+xml') return true;
+
+  return IMAGE_MAGIC.some(sig =>
+    sig.bytes.every((b, i) => buf[i] === b)
+  );
+}
 
 const logoUpload = multer({
   storage: multer.diskStorage({
@@ -335,6 +358,7 @@ router.get('/branding', (req, res) => {
 });
 
 router.post('/branding', logoUpload.single('branding_logo_file'), (req, res) => {
+  if (!validateCsrf(req, res)) return;
   try {
     const { branding_primary_color_hex, branding_accent_color_hex, branding_logo_url } = req.body;
     const hexRe = /^#[0-9a-fA-F]{6}$/;
@@ -345,6 +369,10 @@ router.post('/branding', logoUpload.single('branding_logo_file'), (req, res) => 
 
     // File upload takes priority over URL; if neither provided keep existing
     if (req.file) {
+      if (!validateImageMagicBytes(req.file.path, req.file.mimetype)) {
+        fs.unlink(req.file.path, () => {});
+        throw new Error('Uploaded file does not match its declared image type');
+      }
       db.setConfig('branding_logo_url', `/uploads/${req.file.filename}`);
     } else if ((branding_logo_url || '').trim()) {
       db.setConfig('branding_logo_url', branding_logo_url.trim());

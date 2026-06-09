@@ -18,6 +18,7 @@
   <p class="muted">Connect any email account to send the newsletter.</p>
 
   <form method="POST" action="/setup/email/smtp" class="form" id="smtp-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <div class="form-group">
       <label>Provider</label>

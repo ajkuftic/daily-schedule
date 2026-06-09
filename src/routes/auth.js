@@ -2,9 +2,18 @@
 
 const express  = require('express');
 const bcrypt   = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const db = require('../db/index');
 
 const router = express.Router();
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+});
 
 // ── LOGIN / LOGOUT / PASSWORD ──────────────────────────────────
 
@@ -25,7 +34,10 @@ router.post('/set-password', async (req, res) => {
       return res.redirect('/login');
     }
     const { password, confirm } = req.body;
-    if (!password || password.length < 8) throw new Error('Password must be at least 8 characters');
+    if (!password || password.length < 12) throw new Error('Password must be at least 12 characters');
+    if (!/[A-Z]/.test(password)) throw new Error('Password must contain at least one uppercase letter');
+    if (!/[0-9]/.test(password)) throw new Error('Password must contain at least one number');
+    if (!/[^a-zA-Z0-9]/.test(password)) throw new Error('Password must contain at least one symbol');
     if (password !== confirm) throw new Error('Passwords do not match');
     const hash = await bcrypt.hash(password, 12);
     db.setConfig('admin_password_hash', hash);
@@ -42,7 +54,7 @@ router.get('/login', (req, res) => {
   res.render('auth-login', { flash: req.query });
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { password, return_to } = req.body;
     const config = db.getAllConfig();

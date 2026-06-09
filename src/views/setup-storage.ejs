@@ -8,6 +8,7 @@
 <% if (flash.error)  { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
 <form method="POST" action="/setup/storage" class="form">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
   <div class="form-group">
     <label>Storage provider</label>
@@ -273,7 +274,7 @@ function testUpload() {
   btn.textContent = 'Testing…';
   out.style.display = 'none';
 
-  fetch('/setup/storage/test', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+  fetch('/setup/storage/test', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() } })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       btn.disabled = false;

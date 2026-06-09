@@ -19,8 +19,8 @@ module.exports = function requireAuth(req, res, next) {
     return res.redirect('/auth/set-password');
   }
 
-  // Dev preview bypass — never set this in production
-  if (process.env.DEV_AUTOLOGIN === '1') return next();
+  // Dev preview bypass — blocked entirely in production
+  if (process.env.NODE_ENV !== 'production' && process.env.DEV_AUTOLOGIN === '1') return next();
 
   // Authenticated
   if (req.session && req.session.authenticated) return next();
