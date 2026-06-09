@@ -42,6 +42,28 @@
     </div>
   <% } %>
 
+  <div class="card" style="margin-bottom:24px;">
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Display Timezone <span class="hint">(optional — leave blank for family default)</span></label>
+      <input type="text" name="display_timezone" value="<%= editMode && account ? (account.metadata?.displayTimezone || '') : '' %>" placeholder="e.g. America/Chicago">
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <h3>Filters</h3>
+    <div class="form-group">
+      <label>
+        <input type="hidden" name="skip_all_day" value="0">
+        <input type="checkbox" name="skip_all_day" value="1" <%= (editMode && account && account.metadata?.skipAllDay) ? 'checked' : '' %>>
+        Skip all-day events
+      </label>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Skip events containing keywords <span class="hint">(one per line, case-insensitive)</span></label>
+      <textarea name="filter_keywords" rows="3" style="width:100%;box-sizing:border-box;"><%= (editMode && account && account.metadata?.filterKeywords || []).join('\n') %></textarea>
+    </div>
+  </div>
+
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Save</button>
     <a href="/setup/calendars" class="btn btn-ghost">Cancel</a>

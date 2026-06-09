@@ -1,7 +1,7 @@
 <%- include('_head', { title: 'Edit Calendar' }) %>
 
 <h1>Edit Calendar</h1>
-<p class="subtitle">Update the label for this calendar source.</p>
+<p class="subtitle">Update the label and filters for this calendar source.</p>
 
 <% if (flash && flash.error) { %><div class="alert alert-error"><%= flash.error %></div><% } %>
 
@@ -13,6 +13,30 @@
       <input type="text" name="account_name" value="<%= account.name %>" placeholder="My Calendar" required>
     </div>
   </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <h3>Display Timezone</h3>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Display Timezone <span class="hint">(overrides global — leave blank to use family timezone)</span></label>
+      <input type="text" name="display_timezone" value="<%= account.metadata?.displayTimezone || '' %>" placeholder="America/New_York">
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <h3>Filters</h3>
+    <div class="form-group">
+      <label>
+        <input type="hidden" name="skip_all_day" value="0">
+        <input type="checkbox" name="skip_all_day" value="1" <%= account.metadata?.skipAllDay ? 'checked' : '' %>>
+        Skip all-day events
+      </label>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Skip events containing keywords <span class="hint">(one per line, case-insensitive)</span></label>
+      <textarea name="filter_keywords" rows="3" style="width:100%;box-sizing:border-box;"><%= (account.metadata?.filterKeywords || []).join('\n') %></textarea>
+    </div>
+  </div>
+
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Save</button>
     <a href="/setup/calendars" class="btn btn-ghost">Cancel</a>

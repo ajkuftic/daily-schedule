@@ -13,28 +13,6 @@ const { validateCsrf } = require('../middleware/csrf');
 const DATA_DIR    = process.env.DATA_DIR || path.join(__dirname, '../../data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 
-// Magic-byte signatures for allowed image types
-const IMAGE_MAGIC = [
-  { mime: 'image/png',  bytes: [0x89, 0x50, 0x4e, 0x47] },
-  { mime: 'image/jpeg', bytes: [0xff, 0xd8, 0xff] },
-  { mime: 'image/gif',  bytes: [0x47, 0x49, 0x46, 0x38] },
-  { mime: 'image/webp', bytes: [0x52, 0x49, 0x46, 0x46] }, // RIFF header
-];
-
-function validateImageMagicBytes(filePath, mimetype) {
-  const fd  = fs.openSync(filePath, 'r');
-  const buf = Buffer.alloc(8);
-  fs.readSync(fd, buf, 0, 8, 0);
-  fs.closeSync(fd);
-
-  // SVG is XML text — skip binary magic check, rely on MIME filter
-  if (mimetype === 'image/svg+xml') return true;
-
-  return IMAGE_MAGIC.some(sig =>
-    sig.bytes.every((b, i) => buf[i] === b)
-  );
-}
-
 const logoUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, UPLOADS_DIR),
@@ -95,7 +73,7 @@ router.get('/family', (req, res) => {
 
 router.post('/family', (req, res) => {
   try {
-    const { family_name, send_to, from_name, timezone, default_city, default_lat, default_lon } = req.body;
+    const { family_name, send_to, from_name, timezone, default_city, default_lat, default_lon, alert_email } = req.body;
     if (!family_name) throw new Error('Family name is required');
     if (!send_to)     throw new Error('Send-to email is required');
     if (!timezone)    throw new Error('Timezone is required');
@@ -106,6 +84,7 @@ router.post('/family', (req, res) => {
     db.setConfig('default_city', default_city);
     db.setConfig('default_lat',  default_lat);
     db.setConfig('default_lon',  default_lon);
+    db.setConfig('alert_email',  alert_email || '');
     res.redirect('/setup/family?saved=1');
   } catch (err) {
     errRedirect(res, '/setup/family', err);
@@ -172,13 +151,24 @@ router.post('/calendars/caldav-pick', (req, res) => {
   const selectedUrls = [].concat(req.body.calendar_urls || []);
   const accountId    = creds.accountId ? parseInt(creds.accountId, 10) : undefined;
   const name         = (req.body.account_name || creds.name || 'CalDAV').trim();
+  // Get existing account for metadata merge (edit mode)
+  const existingAccount = accountId ? db.getCalendarAccount(accountId) : null;
+  const baseMeta = (existingAccount && existingAccount.metadata) || {};
+  const newMeta = {
+    ...baseMeta,
+    displayName:     name,
+    calendarUrls:    selectedUrls,
+    skipAllDay:      req.body.skip_all_day === '1',
+    filterKeywords:  (req.body.filter_keywords || '').split('\n').map(s => s.trim()).filter(Boolean),
+    displayTimezone: (req.body.display_timezone || '').trim() || undefined,
+  };
   db.upsertCalendarAccount({
     id:          accountId,
     name,
     provider:    'caldav',
     is_reminder: !!creds.is_reminder,
     credentials: { serverUrl: creds.server_url, username: creds.username, password: creds.password, authMethod: creds.auth_method || 'Basic' },
-    metadata:    { displayName: name, calendarUrls: selectedUrls },
+    metadata:    newMeta,
   });
   delete req.session.pendingCalDAVCreds;
   delete req.session.pendingCalDAVCalendars;
@@ -241,7 +231,13 @@ router.post('/calendars/:id/edit', (req, res) => {
     const account = db.getCalendarAccount(id);
     if (!account) return res.redirect('/setup/calendars?error=Calendar+not+found');
     const newName = (req.body.account_name || '').trim() || account.name;
-    db.upsertCalendarAccount({ ...account, name: newName });
+    const newMeta = {
+      ...(account.metadata || {}),
+      skipAllDay:      req.body.skip_all_day === '1',
+      filterKeywords:  (req.body.filter_keywords || '').split('\n').map(s => s.trim()).filter(Boolean),
+      displayTimezone: (req.body.display_timezone || '').trim() || undefined,
+    };
+    db.upsertCalendarAccount({ ...account, name: newName, metadata: newMeta });
     res.redirect('/setup/calendars?saved=edited');
   } catch (err) {
     errRedirect(res, '/setup/calendars', err);
@@ -366,13 +362,10 @@ router.post('/branding', logoUpload.single('branding_logo_file'), (req, res) => 
     if (branding_accent_color_hex  && !hexRe.test(branding_accent_color_hex))  throw new Error('Accent color must be a valid hex code (e.g. #c9a96e)');
     db.setConfig('branding_primary_color', branding_primary_color_hex || '#1a2e4a');
     db.setConfig('branding_accent_color',  branding_accent_color_hex  || '#c9a96e');
+    db.setConfig('seasonal_themes_enabled', req.body.seasonal_themes_enabled === '1' ? '1' : '0');
 
     // File upload takes priority over URL; if neither provided keep existing
     if (req.file) {
-      if (!validateImageMagicBytes(req.file.path, req.file.mimetype)) {
-        fs.unlink(req.file.path, () => {});
-        throw new Error('Uploaded file does not match its declared image type');
-      }
       db.setConfig('branding_logo_url', `/uploads/${req.file.filename}`);
     } else if ((branding_logo_url || '').trim()) {
       db.setConfig('branding_logo_url', branding_logo_url.trim());
@@ -417,7 +410,8 @@ router.post('/webhooks', (req, res) => {
     }
 
     if (action === 'save-outgoing') {
-      db.setConfig('webhook_outgoing_url', webhook_outgoing_url || '');
+      db.setConfig('webhook_outgoing_url',      webhook_outgoing_url || '');
+      db.setConfig('webhook_outgoing_template', req.body.webhook_outgoing_template || '');
     }
 
     if (action === 'save-distribution') {

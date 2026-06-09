@@ -19,7 +19,7 @@ function buildEmailHTML({ dateStr, city, weather, clothingTip, events, familyNam
     ['Rain',      `${rainChance}% chance`],
   ].map(([label, val]) =>
     `<tr>`
-    + `<td style="padding:4px 16px 4px 0;font-family:Arial,sans-serif;font-size:13px;color:#888;font-weight:700;">${label}</td>`
+    + `<td class="weather-label" style="padding:4px 16px 4px 0;font-family:Arial,sans-serif;font-size:13px;color:#888;font-weight:700;">${label}</td>`
     + `<td style="padding:4px 0;font-family:Arial,sans-serif;font-size:13px;color:${primary};">${val}</td>`
     + `</tr>`
   ).join('');
@@ -36,9 +36,24 @@ function buildEmailHTML({ dateStr, city, weather, clothingTip, events, familyNam
     : '';
 
   return `<!DOCTYPE html>`
-    + `<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Daily ${familyName}</title></head>`
+    + `<html lang="en"><head><meta charset="UTF-8">`
+    + `<meta name="viewport" content="width=device-width,initial-scale=1.0">`
+    + `<meta name="color-scheme" content="light dark">`
+    + `<title>Daily ${familyName}</title>`
+    + `<style>`
+    + `@media (prefers-color-scheme: dark) {`
+    + `body { background-color: #1a1a1a !important; }`
+    + `.email-outer { background-color: #1a1a1a !important; }`
+    + `.email-body-cell { background-color: #2a2a2a !important; color: #e0e0e0 !important; }`
+    + `.email-footer-cell { background-color: #111 !important; }`
+    + `.weather-label { color: #aaa !important; }`
+    + `.clothing-text { color: #ccc !important; }`
+    + `.event-row td { border-bottom-color: #3a3a3a !important; }`
+    + `}`
+    + `</style>`
+    + `</head>`
     + `<body style="margin:0;padding:0;background-color:#f4f0e8;font-family:Georgia,serif;">`
-    + `<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f0e8;padding:24px 0;"><tr><td align="center">`
+    + `<table width="100%" cellpadding="0" cellspacing="0" class="email-outer" style="background-color:#f4f0e8;padding:24px 0;"><tr><td align="center">`
     + `<table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;width:100%;">`
 
     + `<tr><td style="background-color:${primary};border-radius:8px 8px 0 0;padding:36px 40px 28px;text-align:center;">`
@@ -51,7 +66,7 @@ function buildEmailHTML({ dateStr, city, weather, clothingTip, events, familyNam
 
     + `<tr><td style="background-color:${accent};height:4px;"></td></tr>`
 
-    + `<tr><td style="background-color:#ffffff;padding:28px 40px 24px;">`
+    + `<tr><td class="email-body-cell" style="background-color:#ffffff;padding:28px 40px 24px;">`
     + `<table width="100%" cellpadding="0" cellspacing="0"><tr>`
     + `<td style="vertical-align:top;padding-right:24px;width:42%;">`
     + `<p style="margin:0 0 10px;font-family:Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:${accent};text-transform:uppercase;">Weather Forecast</p>`
@@ -60,14 +75,14 @@ function buildEmailHTML({ dateStr, city, weather, clothingTip, events, familyNam
     + `</td>`
     + `<td style="vertical-align:top;border-left:1px solid #e8e2d8;padding-left:24px;">`
     + `<p style="margin:0 0 10px;font-family:Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:${accent};text-transform:uppercase;">What to Wear</p>`
-    + `<p style="margin:0;font-family:Arial,sans-serif;font-size:14px;line-height:1.85;color:#3a3530;">${clothingTip}</p>`
+    + `<p class="clothing-text" style="margin:0;font-family:Arial,sans-serif;font-size:14px;line-height:1.85;color:#3a3530;">${clothingTip}</p>`
     + `</td>`
     + `</tr></table>`
     + `</td></tr>`
 
     + `<tr><td style="background-color:#f4f0e8;height:3px;"></td></tr>`
 
-    + `<tr><td style="background-color:#ffffff;padding:28px 40px 32px;">`
+    + `<tr><td class="email-body-cell" style="background-color:#ffffff;padding:28px 40px 32px;">`
     + `<p style="margin:0 0 16px;font-family:Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:${accent};text-transform:uppercase;">Today's Program</p>`
     + eventsHtml
     + `</td></tr>`
@@ -78,7 +93,7 @@ function buildEmailHTML({ dateStr, city, weather, clothingTip, events, familyNam
     + `<p style="margin:0;font-family:Arial,sans-serif;font-size:12px;color:#8a9ab5;">Enjoy the day \u2014 make it a great one!</p>`
     + `</td></tr>`
 
-    + `<tr><td style="background-color:${adjustDark(primary)};border-radius:0 0 8px 8px;padding:14px 40px;text-align:center;">`
+    + `<tr><td class="email-footer-cell" style="background-color:${adjustDark(primary)};border-radius:0 0 8px 8px;padding:14px 40px;text-align:center;">`
     + `<p style="margin:0;font-family:Arial,sans-serif;font-size:11px;color:#5a6a80;letter-spacing:0.06em;text-transform:uppercase;">${familyName} Family Daily &nbsp;&middot;&nbsp; ${dateStr}</p>`
     + `</td></tr>`
 
@@ -130,7 +145,7 @@ function renderEmailEventRow(event, primary, accent) {
   const borderColor = isFlight ? '#9a7c3a' : accent;
   const rowBg       = isFlight ? 'background-color:#fdf9f3;' : '';
 
-  return `<tr style="${rowBase}${rowBg}">`
+  return `<tr class="event-row" style="${rowBase}${rowBg}">`
     + `<td style="padding:12px 10px 12px 12px;vertical-align:top;border-left:3px solid ${borderColor};width:110px;">`
     + `<p style="margin:0;font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:${primary};">${formatTime(event.start, event.timezone)}</p>`
     + `<p style="margin:2px 0 0;font-family:Arial,sans-serif;font-size:11px;color:#aaa;">to ${formatTime(event.end, event.timezone)}</p>`

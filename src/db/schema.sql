@@ -45,3 +45,22 @@ CREATE TABLE IF NOT EXISTS send_log (
   details  TEXT,
   sent_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Per-recipient settings (replaces single send_to config)
+CREATE TABLE IF NOT EXISTS recipients (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  email       TEXT NOT NULL,
+  name        TEXT,
+  include_pdf INTEGER DEFAULT 1,
+  active      INTEGER DEFAULT 1,
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- AI blurb cache (avoids redundant Claude API calls)
+CREATE TABLE IF NOT EXISTS blurb_cache (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  cache_key  TEXT UNIQUE NOT NULL,
+  blurb      TEXT,
+  travel     TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

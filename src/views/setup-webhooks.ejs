@@ -55,9 +55,14 @@
         value="<%= config.webhook_outgoing_url || '' %>"
         placeholder="https://hooks.slack.com/services/…">
     </div>
+    <div class="form-group">
+      <label>Payload template <span class="hint">(optional JSON — use {{date}}, {{dateStr}}, {{status}}, {{subject}}, {{sentTo}}, {{pdfUrl}})</span></label>
+      <textarea name="webhook_outgoing_template" rows="5" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;" placeholder='{"date":"{{date}}","subject":"{{subject}}"}'><%= config.webhook_outgoing_template || '' %></textarea>
+      <p class="field-hint">Leave blank to use the default payload. Must be valid JSON with {{variable}} placeholders.</p>
+    </div>
     <div class="callout" style="margin-bottom:16px;">
-      <strong>Payload sent:</strong><br>
-      <code>{"date":"2026-03-21","dateStr":"Saturday, March 21, 2026","status":"success","subject":"Daily Smith – …","sentTo":"family@example.com"}</code>
+      <strong>Default payload sent:</strong><br>
+      <code>{"date":"2026-03-21","dateStr":"Saturday, March 21, 2026","status":"success","subject":"Daily Smith – …","sentTo":"family@example.com","pdfUrl":""}</code>
     </div>
     <button type="submit" class="btn btn-primary">Save</button>
     <% if (config.webhook_outgoing_url) { %>

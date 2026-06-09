@@ -1,0 +1,75 @@
+<%- include('_head', { title: 'Recipients' }) %>
+
+<h1>Recipients</h1>
+<p class="subtitle">Manage who receives the daily newsletter and whether they get the PDF attachment.</p>
+
+<% if (flash.saved)   { %><div class="alert alert-success">Saved.</div><% } %>
+<% if (flash.deleted) { %><div class="alert alert-success">Recipient removed.</div><% } %>
+<% if (flash.error)   { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
+
+<% if (recipients.length > 0) { %>
+<div class="card" style="margin-bottom:24px;">
+  <h3>Current Recipients</h3>
+  <table class="table">
+    <thead><tr><th>Email</th><th>Name</th><th>PDF</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+      <% for (const r of recipients) { %>
+        <tr>
+          <form method="POST" action="/setup/recipients/<%= r.id %>/update">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <td><input type="email" name="email" value="<%= r.email %>" required style="width:100%;min-width:180px;"></td>
+            <td><input type="text" name="name" value="<%= r.name || '' %>" placeholder="Optional name" style="width:100%;"></td>
+            <td style="text-align:center;">
+              <input type="hidden" name="include_pdf" value="0">
+              <input type="checkbox" name="include_pdf" value="1" <%= r.include_pdf ? 'checked' : '' %>>
+            </td>
+            <td style="text-align:center;">
+              <input type="hidden" name="active" value="0">
+              <input type="checkbox" name="active" value="1" <%= r.active ? 'checked' : '' %>>
+            </td>
+            <td style="white-space:nowrap;">
+              <button type="submit" class="btn btn-sm btn-ghost">Save</button>
+          </form>
+              <form method="POST" action="/setup/recipients/<%= r.id %>/delete" style="display:inline;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this recipient?')">Remove</button>
+              </form>
+            </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<% } else { %>
+<div class="alert alert-info">No recipients yet. Add one below.</div>
+<% } %>
+
+<div class="card">
+  <h3>Add Recipient</h3>
+  <form method="POST" action="/setup/recipients/add" class="form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Email <span class="hint">(required)</span></label>
+        <input type="email" name="email" placeholder="person@example.com" required>
+      </div>
+      <div class="form-group">
+        <label>Name <span class="hint">(optional)</span></label>
+        <input type="text" name="name" placeholder="Jane">
+      </div>
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="hidden" name="include_pdf" value="0">
+        <input type="checkbox" name="include_pdf" value="1" checked>
+        Include PDF attachment
+      </label>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Add Recipient</button>
+      <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
+    </div>
+  </form>
+</div>
+
+<%- include('_foot') %>

@@ -10,7 +10,9 @@ function csrfMiddleware(req, res, next) {
   if (!req.session.csrfToken) {
     req.session.csrfToken = generateToken();
   }
+  // Expose token to views and as a callable function
   res.locals.csrfToken = req.session.csrfToken;
+  req.csrfToken = () => req.session.csrfToken;
 
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
     // Webhook route authenticates via URL secret — skip CSRF

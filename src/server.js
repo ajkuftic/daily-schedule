@@ -9,30 +9,22 @@ const session          = require('express-session');
 const BetterSqliteStore = require('./db/session-store');
 const { csrfMiddleware } = require('./middleware/csrf');
 
-const setupRoutes   = require('./routes/setup');
-const authRoutes    = require('./routes/auth');
-const apiRoutes     = require('./routes/api');
-const webhookRoutes = require('./routes/webhook');
-const logsRoutes         = require('./routes/logs');
-const newslettersRoutes  = require('./routes/newsletters');
-const requireAuth   = require('./middleware/requireAuth');
+const setupRoutes      = require('./routes/setup');
+const authRoutes       = require('./routes/auth');
+const apiRoutes        = require('./routes/api');
+const webhookRoutes    = require('./routes/webhook');
+const logsRoutes       = require('./routes/logs');
+const newslettersRoutes = require('./routes/newsletters');
+const recipientsRoutes = require('./routes/recipients');
+const requireAuth      = require('./middleware/requireAuth');
 const { startScheduler } = require('./scheduler');
-const db            = require('./db/index');
+const db               = require('./db/index');
 
 const fs = require('fs');
 
 const DATA_DIR    = process.env.DATA_DIR || path.join(__dirname, '../data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const PORT        = parseInt(process.env.PORT || '3000', 10);
-
-// ── STARTUP VALIDATION ────────────────────────────────────────
-if (process.env.NODE_ENV === 'production') {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret || secret === 'change-me') {
-    console.error('FATAL: SESSION_SECRET must be set to a strong random value in production. Refusing to start.');
-    process.exit(1);
-  }
-}
 
 // Ensure uploads directory exists
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -50,6 +42,15 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+// ── STARTUP VALIDATION ────────────────────────────────────────
+if (isProduction) {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret === 'change-me') {
+    console.error('FATAL: SESSION_SECRET must be set to a strong random value in production. Refusing to start.');
+    process.exit(1);
+  }
+}
+
 app.use(session({
   store:  new BetterSqliteStore(require('./db/index').db),
   secret: process.env.SESSION_SECRET || 'change-me',
@@ -66,6 +67,38 @@ app.use(session({
 // CSRF token generation + validation (must come after session)
 app.use(csrfMiddleware);
 
+// ── ROUTES ────────────────────────────────────────────────────
+app.use('/auth',    authRoutes);           // login/logout before auth guard
+app.get('/login',  (req, res) => {
+  const qs = Object.keys(req.query).length ? '?' + new URLSearchParams(req.query).toString() : '';
+  res.redirect(`/auth/login${qs}`);
+});
+
+// Health check (public — before requireAuth)
+app.get('/health', (req, res) => {
+  try {
+    db.db.prepare('SELECT 1').get();
+    res.json({ ok: true, db: true, uptime: Math.floor(process.uptime()), version: require('../package.json').version });
+  } catch (err) {
+    res.status(503).json({ ok: false, db: false, error: err.message });
+  }
+});
+
+app.use(requireAuth);                      // everything below requires login
+
+// Expose branding colors and CSRF token to all views
+app.use((req, res, next) => {
+  res.locals.branding = {
+    primary: db.getConfig('branding_primary_color') || '#1a2e4a',
+    accent:  db.getConfig('branding_accent_color')  || '#c9a96e',
+  };
+  res.locals.csrfToken = req.csrfToken ? req.csrfToken() : '';
+  next();
+});
+
+// Serve uploaded logos (authenticated)
+app.use('/uploads', express.static(UPLOADS_DIR));
+
 // HSTS — instruct browsers to always use HTTPS
 if (isProduction) {
   app.use((req, res, next) => {
@@ -74,28 +107,8 @@ if (isProduction) {
   });
 }
 
-// ── ROUTES ────────────────────────────────────────────────────
-app.use('/auth',    authRoutes);           // login/logout before auth guard
-app.get('/login',  (req, res) => {
-  const qs = Object.keys(req.query).length ? '?' + new URLSearchParams(req.query).toString() : '';
-  res.redirect(`/auth/login${qs}`);
-});
-
-app.use(requireAuth);                      // everything below requires login
-
-// Expose branding colors to all views
-app.use((req, res, next) => {
-  res.locals.branding = {
-    primary: db.getConfig('branding_primary_color') || '#1a2e4a',
-    accent:  db.getConfig('branding_accent_color')  || '#c9a96e',
-  };
-  next();
-});
-
-// Serve uploaded logos (authenticated)
-app.use('/uploads', express.static(UPLOADS_DIR));
-
 app.use('/setup',       setupRoutes);
+app.use('/setup',       recipientsRoutes);
 app.use('/api',         apiRoutes);
 app.use('/logs',        logsRoutes);
 app.use('/newsletters', newslettersRoutes);

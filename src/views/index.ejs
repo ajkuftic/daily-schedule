@@ -38,6 +38,17 @@
       </div>
       <div id="testSendResult" style="margin-top:8px;font-size:13px;display:none;"></div>
     </div>
+    <!-- Send Preview panel (hidden until Send Now clicked) -->
+    <div id="sendPreviewPanel" style="display:none;margin-top:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <strong style="font-size:14px;">Preview before sending</strong>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" id="sendPreviewConfirm">Confirm &amp; Send</button>
+          <button class="btn btn-ghost" id="sendPreviewCancel">Cancel</button>
+        </div>
+      </div>
+      <iframe id="sendPreviewIframe" src="" style="width:100%;height:500px;border:1px solid var(--border);border-radius:var(--radius);" sandbox="allow-same-origin"></iframe>
+    </div>
   <% } %>
 </div>
 
@@ -170,18 +181,31 @@ if (schedEl) {
   updateLinks();
 })();
 
-document.getElementById('sendNowBtn')?.addEventListener('click', async () => {
-  const btn = document.getElementById('sendNowBtn');
+document.getElementById('sendNowBtn')?.addEventListener('click', () => {
+  const panel = document.getElementById('sendPreviewPanel');
+  const dateVal = document.getElementById('previewDate').value;
+  const iframe = document.getElementById('sendPreviewIframe');
+  iframe.src = '/api/preview?view=email&date=' + (dateVal || '');
+  panel.style.display = '';
+});
+
+document.getElementById('sendPreviewCancel')?.addEventListener('click', () => {
+  document.getElementById('sendPreviewPanel').style.display = 'none';
+});
+
+document.getElementById('sendPreviewConfirm')?.addEventListener('click', async () => {
+  const btn = document.getElementById('sendPreviewConfirm');
   btn.disabled = true;
   btn.textContent = 'Sending…';
   try {
     const res  = await fetch('/api/send-now', { method: 'POST', headers: { 'x-csrf-token': getCsrfToken() } });
     const data = await res.json();
+    document.getElementById('sendPreviewPanel').style.display = 'none';
     btn.textContent = data.ok ? 'Started!' : 'Error';
   } catch {
     btn.textContent = 'Error';
   }
-  setTimeout(() => { btn.disabled = false; btn.textContent = 'Send Now'; }, 3000);
+  setTimeout(() => { btn.disabled = false; btn.textContent = 'Confirm & Send'; }, 3000);
 });
 
 document.getElementById('testSendBtn')?.addEventListener('click', () => {
@@ -204,7 +228,7 @@ document.getElementById('testSendConfirmBtn')?.addEventListener('click', async (
   try {
     const res  = await fetch('/api/send-test', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
+      headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ email }),
     });
     const data = await res.json();

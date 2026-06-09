@@ -40,8 +40,8 @@ function reschedule() {
       const freshConfig = db.getAllConfig();
       await sendDailyNewsletter(freshConfig);
     } catch (err) {
-      console.error('[scheduler] Error:', err.message);
-      db.logSend(new Date().toISOString().substring(0, 10), 'error', err.message);
+      // sendDailyNewsletter already logs the error, alerts, and logs to send_log
+      console.error('[scheduler] Send failed:', err.message);
     }
   }, { timezone });
 }
