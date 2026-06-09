@@ -3,6 +3,20 @@
 const { fetchCalDAVEvents } = require('./caldav');
 const { fetchICSEvents }    = require('./ics');
 
+function applyAccountFilters(events, account) {
+  const meta = account.metadata || {};
+  let out = events;
+  if (meta.skipAllDay) {
+    out = out.filter(e => !e.allDay);
+  }
+  const keywords = (meta.filterKeywords || []).filter(Boolean);
+  if (keywords.length) {
+    const pats = keywords.map(k => new RegExp(k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+    out = out.filter(e => !pats.some(p => p.test(e.title)));
+  }
+  return out;
+}
+
 /**
  * Fetch and normalize events from all configured calendar accounts.
  *
@@ -45,12 +59,16 @@ async function fetchAllEvents(accounts, dayStart, dayEnd, isoDate, defaultTz) {
           console.warn(`[calendar] Unknown provider: ${account.provider}`);
       }
 
+      // Apply per-account filters (skipAllDay, filterKeywords)
+      events = applyAccountFilters(events, account);
+
       // Tag events with their source account, then deduplicate and collect
       for (const e of events) {
         const key = `${e.title}|${e.start}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        allEvents.push({ ...e, calendarAccountId: account.id });
+        const displayTz = account.metadata?.displayTimezone;
+        allEvents.push({ ...e, calendarAccountId: account.id, ...(displayTz ? { timezone: displayTz } : {}) });
       }
     } catch (err) {
       console.error(`[calendar] Error fetching account ${account.id} (${account.provider}):`, err.message);

@@ -81,7 +81,6 @@
         <div>
           <p style="margin:0 0 6px;font-size:13px;color:var(--navy);">Current logo</p>
           <form method="POST" action="/setup/branding/remove-logo" style="display:inline;">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button type="submit" class="btn btn-ghost" style="font-size:12px;padding:4px 10px;">Remove</button>
           </form>
         </div>
@@ -101,6 +100,19 @@
              placeholder="https://example.com/logo.png"
              autocomplete="off">
       <p class="field-hint">Used if no file is uploaded. Must be publicly accessible for PDF generation.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Seasonal Themes</h3>
+    <p class="muted">Automatically change the newsletter colors based on holidays and seasons.</p>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="hidden" name="seasonal_themes_enabled" value="0">
+        <input type="checkbox" name="seasonal_themes_enabled" value="1" <%= config.seasonal_themes_enabled === '1' ? 'checked' : '' %>>
+        Enable seasonal &amp; holiday themes
+      </label>
+      <p class="field-hint">When enabled, newsletter colors will automatically reflect Christmas, Halloween, Valentine's Day, Thanksgiving, and the current season.</p>
     </div>
   </div>
 

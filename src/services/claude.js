@@ -1,6 +1,7 @@
 'use strict';
 
 const Anthropic = require('@anthropic-ai/sdk');
+const crypto    = require('crypto');
 
 const MODEL   = 'claude-haiku-4-5';
 const RETRIES = 3;
@@ -8,7 +9,11 @@ const TIMEOUT = 30_000; // 30 s per attempt
 
 const DEFAULT_BLURB_INSTRUCTION = `A 1-2 sentence blurb about the event itself. Friendly and warm, specific and helpful. Do NOT start with the event name. Do NOT use quotes. Under 40 words.`;
 
-async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
+function blurbCacheKey(event, isoDate) {
+  return crypto.createHash('sha256').update(`${event.title}|${event.start}|${isoDate}`).digest('hex');
+}
+
+async function enrichEventsWithBlurbs(events, city, dateStr, apiKey, isoDate) {
   const db     = require('../db/index');
   const config = db.getAllConfig();
 
@@ -20,6 +25,9 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
     console.log('[blurb] No API key — skipping blurbs');
     return;
   }
+
+  // Prune stale cache entries once per run
+  db.pruneBlurbCache();
 
   const blurbInstruction = (config.blurb_instruction || '').trim() || DEFAULT_BLURB_INSTRUCTION;
   const client = new Anthropic({ apiKey });
@@ -55,7 +63,24 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
     const isGenericLogistics = /^(breakfast|lunch|dinner|sleep|wake up|pack|unpack|laundry)$/i.test(event.title.trim());
     if (isGenericLogistics && !event.location) continue;
 
-    const timeStr        = formatTime(event.start, event.timezone) + ' \u2013 ' + formatTime(event.end, event.timezone);
+    // Check cache first
+    if (isoDate) {
+      const cacheKey = blurbCacheKey(event, isoDate);
+      const cached = db.getBlurbCache(cacheKey);
+      if (cached) {
+        if (cached.blurb) event.generatedBlurb = cached.blurb;
+        if (cached.travel) {
+          event.travelDuration = cached.travel;
+          // travelFromLocation can't be reconstructed from cache; that's fine
+        }
+        if (config.blurbs_debug === '1') {
+          console.log(`[blurb:debug] Cache hit for "${event.title}"`);
+        }
+        continue;
+      }
+    }
+
+    const timeStr        = formatTime(event.start, event.timezone) + ' – ' + formatTime(event.end, event.timezone);
     const locationContext = event.location ? `Location: ${event.location}` : `City context: ${city}`;
     const prevLocation    = (i > 0 && timedEvents[i - 1].location) ? timedEvents[i - 1].location : baseLocation;
     const travelContext   = (event.location && prevLocation && event.location !== prevLocation)
@@ -102,6 +127,12 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey) {
     if (duration) {
       event.travelDuration     = duration;
       event.travelFromLocation = prevLocation;
+    }
+
+    // Cache the result
+    if (isoDate) {
+      const cacheKey = blurbCacheKey(event, isoDate);
+      db.setBlurbCache(cacheKey, event.generatedBlurb || '', duration || '');
     }
   }
 }

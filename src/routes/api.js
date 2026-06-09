@@ -16,9 +16,9 @@ router.post('/send-now', async (req, res) => {
       return res.status(400).json({ error: 'Setup not complete' });
     }
     // Run async, respond immediately
+    // sendDailyNewsletter handles error logging internally
     sendDailyNewsletter(config).catch(err => {
-      console.error('[api] send-now error:', err.message);
-      db.logSend(new Date().toISOString().substring(0, 10), 'error', err.message);
+      console.error('[api] send-now failed:', err.message);
     });
     res.json({ ok: true, message: 'Newsletter send started' });
   } catch (err) {
@@ -38,8 +38,7 @@ router.post('/send-test', async (req, res) => {
       return res.status(400).json({ error: 'A valid email address is required' });
     }
     sendDailyNewsletter(config, { testEmail }).catch(err => {
-      console.error('[api] send-test error:', err.message);
-      db.logSend(new Date().toISOString().substring(0, 10), 'error', `Test send failed: ${err.message}`);
+      console.error('[api] send-test failed:', err.message);
     });
     res.json({ ok: true, message: `Test send started → ${testEmail}` });
   } catch (err) {

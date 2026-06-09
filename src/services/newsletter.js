@@ -10,7 +10,21 @@ const { sendEmail }                = require('./email/index');
 const { sendIftttEmail }           = require('./ifttt');
 const { buildEmailHTML }           = require('../templates/email');
 const { buildPrintHTML }           = require('../templates/print');
+const { getSeasonalTheme }         = require('./seasonal');
 const db = require('../db/index');
+
+function buildWebhookPayload(template, vars) {
+  if (!template || !template.trim()) return vars; // default: send raw object
+  try {
+    let str = template;
+    for (const [k, v] of Object.entries(vars)) {
+      str = str.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v ?? ''));
+    }
+    return JSON.parse(str);
+  } catch {
+    return vars; // fallback to default if template is invalid JSON
+  }
+}
 
 /**
  * Build newsletter content (events, weather, HTML) without sending.
@@ -66,7 +80,7 @@ async function buildNewsletterContent(config, { targetDate } = {}) {
   const clothingTip = buildClothingTip(weather, events);
 
   // ── Claude blurbs ─────────────────────────────────────────────
-  await enrichEventsWithBlurbs(events, location.city, dateStr, config.claude_api_key);
+  await enrichEventsWithBlurbs(events, location.city, dateStr, config.claude_api_key, isoDate);
 
   // ── Inject departure reminders ────────────────────────────────
   const renderEvents = injectDepartureEvents(events);
@@ -77,6 +91,15 @@ async function buildNewsletterContent(config, { targetDate } = {}) {
     accent_color:  config.branding_accent_color  || '',
     logo_url:      config.branding_logo_url       || '',
   };
+
+  // Apply seasonal theme overrides if enabled
+  if (config.seasonal_themes_enabled === '1') {
+    const seasonal = getSeasonalTheme(isoDate);
+    if (seasonal) {
+      branding.primary_color = seasonal.primary_color;
+      branding.accent_color  = seasonal.accent_color;
+    }
+  }
 
   const emailHtml = buildEmailHTML({ dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName, branding });
   const printHtml = buildPrintHTML({ dateStr, city: location.city, weather, clothingTip, events: renderEvents, familyName, branding });
@@ -94,11 +117,32 @@ async function buildNewsletterContent(config, { targetDate } = {}) {
  *                                       printer CC, storage upload, and webhooks
  * @param {string} [options.targetDate] - override the newsletter date (YYYY-MM-DD)
  */
+async function sendFailureAlert(config, errorMessage) {
+  const alertEmail = config.alert_email;
+  if (!alertEmail) return;
+  const emailAccount = db.getEmailAccount();
+  if (!emailAccount) return;
+  try {
+    const { sendEmail: sendEmailFn } = require('./email/index');
+    await sendEmailFn({
+      emailAccount,
+      to: alertEmail,
+      subject: `[Daily Schedule] Send failed`,
+      htmlBody: `<p>The daily newsletter failed to send.</p><pre>${errorMessage}</pre>`,
+      fromName: config.from_name || `Daily ${config.family_name || 'Schedule'}`,
+    });
+    console.log(`[newsletter] Failure alert sent to ${alertEmail}`);
+  } catch (e) {
+    console.error('[newsletter] Failed to send alert email:', e.message);
+  }
+}
+
 async function sendDailyNewsletter(config, { testEmail, targetDate } = {}) {
   const isTest     = !!testEmail;
   const familyName = config.family_name || 'Family';
-  const sendTo     = isTest ? testEmail : config.send_to;
   const fromName   = config.from_name || `The Daily ${familyName}`;
+
+  try {
 
   const { emailHtml, printHtml, isoDate, dateStr, weather, renderEvents, clothingTip, timezone, credentialUpdates } =
     await buildNewsletterContent(config, { targetDate });
@@ -114,27 +158,61 @@ async function sendDailyNewsletter(config, { testEmail, targetDate } = {}) {
   const pdfLabel    = `Daily ${familyName} ${dateStr}`;
   const pdf = await generatePDF(printHtml, pdfLabel, config.html2pdf_api_key);
 
-  // ── Send email ────────────────────────────────────────────────
+  // ── Determine recipients ──────────────────────────────────────
   const emailAccount = db.getEmailAccount();
   if (!emailAccount) throw new Error('No email account configured');
 
-  const attachments = pdf ? [pdf] : [];
-  // Skip printer CC on test sends or when Epson printing is disabled
-  const cc = !isTest && pdf && config.epson_connect_email && config.epson_enabled === '1'
-    ? config.epson_connect_email
-    : undefined;
+  let sendTo; // string or array of emails for logging
+  if (isTest) {
+    // Test send: single address
+    const attachments = pdf ? [pdf] : [];
+    const { refreshedCredentials: refreshedEmailCreds } = await sendEmail({
+      emailAccount, to: testEmail, subject, htmlBody: emailHtml, fromName, attachments,
+    });
+    if (refreshedEmailCreds) {
+      db.updateEmailCredentials({ ...emailAccount.credentials, ...refreshedEmailCreds });
+      console.log('[newsletter] Gmail token refreshed and persisted');
+    }
+    sendTo = testEmail;
+    db.logSend(isoDate, 'test', `Test send to ${sendTo}`);
+    console.log(`[newsletter] Test send for ${dateStr} → ${sendTo}${pdf ? ' with PDF' : ''}`);
+  } else {
+    // Real send: use recipients table
+    const recipients = db.getRecipients().filter(r => r.active);
+    if (recipients.length === 0) {
+      // Fallback to config.send_to if no recipients configured
+      const fallbackTo = config.send_to;
+      if (!fallbackTo) throw new Error('No active recipients configured');
+      const attachments = pdf ? [pdf] : [];
+      const cc = pdf && config.epson_connect_email && config.epson_enabled === '1'
+        ? config.epson_connect_email : undefined;
+      await sendEmail({ emailAccount, to: fallbackTo, subject, htmlBody: emailHtml, fromName, attachments, cc });
+      sendTo = fallbackTo;
+    } else {
+      const withPdf    = recipients.filter(r => r.include_pdf).map(r => r.email);
+      const withoutPdf = recipients.filter(r => !r.include_pdf).map(r => r.email);
+      const cc = pdf && config.epson_connect_email && config.epson_enabled === '1'
+        ? config.epson_connect_email : undefined;
 
-  const { refreshedCredentials: refreshedEmailCreds } = await sendEmail({
-    emailAccount, to: sendTo, subject, htmlBody: emailHtml, fromName, attachments, cc,
-  });
-
-  if (refreshedEmailCreds) {
-    db.updateEmailCredentials({ ...emailAccount.credentials, ...refreshedEmailCreds });
-    console.log('[newsletter] Gmail token refreshed and persisted');
+      let refreshedEmailCreds;
+      if (withPdf.length > 0) {
+        const attachments = pdf ? [pdf] : [];
+        const result = await sendEmail({ emailAccount, to: withPdf, subject, htmlBody: emailHtml, fromName, attachments, cc });
+        refreshedEmailCreds = result.refreshedCredentials;
+      }
+      if (withoutPdf.length > 0) {
+        const result = await sendEmail({ emailAccount, to: withoutPdf, subject, htmlBody: emailHtml, fromName, attachments: [] });
+        if (result.refreshedCredentials) refreshedEmailCreds = result.refreshedCredentials;
+      }
+      if (refreshedEmailCreds) {
+        db.updateEmailCredentials({ ...emailAccount.credentials, ...refreshedEmailCreds });
+        console.log('[newsletter] Gmail token refreshed and persisted');
+      }
+      sendTo = recipients.map(r => r.email).join(', ');
+    }
+    db.logSend(isoDate, 'success', `Sent to ${sendTo}`);
+    console.log(`[newsletter] Sent for ${dateStr} → ${sendTo}${pdf ? ' with PDF' : ''}`);
   }
-
-  db.logSend(isoDate, isTest ? 'test' : 'success', `${isTest ? 'Test send' : 'Sent'} to ${sendTo}`);
-  console.log(`[newsletter] ${isTest ? 'Test send' : 'Sent'} for ${dateStr} → ${sendTo}${pdf ? ' with PDF' : ''}`);
 
   // ── Cloud / local storage (skipped for test sends) ────────────
   let pdfUrl = null;
@@ -150,8 +228,8 @@ async function sendDailyNewsletter(config, { testEmail, targetDate } = {}) {
   if (!isTest) {
     const webhookUrl = config.webhook_outgoing_url;
     if (webhookUrl) {
-      const notifyPayload = { date: isoDate, dateStr, status: 'success', subject, sentTo: sendTo };
-      if (pdfUrl) notifyPayload.pdfUrl = pdfUrl;
+      const webhookVars = { date: isoDate, dateStr, status: 'success', subject, sentTo: sendTo, pdfUrl: pdfUrl || '' };
+      const notifyPayload = buildWebhookPayload(config.webhook_outgoing_template, webhookVars);
       fetch(webhookUrl, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -196,6 +274,13 @@ async function sendDailyNewsletter(config, { testEmail, targetDate } = {}) {
         timezone,
       }).catch(err => console.error('[ifttt] Trigger email failed:', err.message));
     }
+  }
+
+  } catch (err) {
+    console.error('[newsletter] Send failed:', err.message);
+    await sendFailureAlert(config, err.message);
+    db.logSend(new Date().toISOString().substring(0, 10), 'error', err.message);
+    throw err;
   }
 }
 

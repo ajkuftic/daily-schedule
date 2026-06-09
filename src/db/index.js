@@ -3,7 +3,6 @@
 const path = require('path');
 const fs   = require('fs');
 const Database = require('better-sqlite3');
-const { encrypt, decrypt } = require('../crypto');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../../data');
 const DB_PATH  = path.join(DATA_DIR, 'daily-schedule.db');
@@ -20,17 +19,21 @@ db.exec(schema);
 
 // Migrations — safe to run on every start (ALTER TABLE is a no-op if column exists)
 try { db.exec('ALTER TABLE calendar_accounts ADD COLUMN blurbs_enabled INTEGER DEFAULT 1'); } catch {}
+try { db.exec('ALTER TABLE recipients ADD COLUMN name TEXT'); } catch {}
 
+// Seed recipients from legacy send_to config if recipients table is empty
+(function seedRecipients() {
+  const count = db.prepare('SELECT COUNT(*) AS n FROM recipients').get().n;
+  if (count === 0) {
+    const sendTo = db.prepare("SELECT value FROM config WHERE key = 'send_to'").get();
+    if (sendTo && sendTo.value) {
+      const emails = sendTo.value.split(',').map(e => e.trim()).filter(Boolean);
+      const insert = db.prepare('INSERT INTO recipients (email, include_pdf, active) VALUES (?, 1, 1)');
+      for (const email of emails) insert.run(email);
+    }
+  }
+})();
 
-// Config keys whose values are stored encrypted at rest
-const SENSITIVE_CONFIG_KEYS = new Set([
-  'claude_api_key',
-  'html2pdf_api_key',
-  'storage_s3_secret_access_key',
-  'storage_google_drive_client_secret',
-  'storage_google_drive_refresh_token',
-  'webhook_distribution_secret',
-]);
 
 // ── CONFIG HELPERS ────────────────────────────────────────────
 // Only JSON-parse values that are objects or arrays — leave plain strings as-is.
@@ -45,18 +48,16 @@ function tryParseConfig(str) {
 function getConfig(key) {
   const row = db.prepare('SELECT value FROM config WHERE key = ?').get(key);
   if (!row) return undefined;
-  const raw = SENSITIVE_CONFIG_KEYS.has(key) ? decrypt(row.value) : row.value;
-  return tryParseConfig(raw);
+  return tryParseConfig(row.value);
 }
 
 function setConfig(key, value) {
   const serialized = typeof value === 'string' ? value : JSON.stringify(value);
-  const stored = SENSITIVE_CONFIG_KEYS.has(key) ? encrypt(serialized) : serialized;
   db.prepare(`
     INSERT INTO config (key, value, updated_at)
     VALUES (?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-  `).run(key, stored);
+  `).run(key, serialized);
 }
 
 function getAllConfig() {
@@ -76,7 +77,6 @@ function getCalendarAccount(id) {
 
 function upsertCalendarAccount(data) {
   const { id, name, provider, is_reminder, blurbs_enabled, credentials, metadata } = data;
-  const encCredentials = encrypt(JSON.stringify(credentials));
   if (id) {
     db.prepare(`
       UPDATE calendar_accounts
@@ -84,13 +84,13 @@ function upsertCalendarAccount(data) {
           updated_at=CURRENT_TIMESTAMP
       WHERE id=?
     `).run(name, provider, is_reminder ? 1 : 0, blurbs_enabled == null ? 1 : (blurbs_enabled ? 1 : 0),
-      encCredentials, JSON.stringify(metadata), id);
+      JSON.stringify(credentials), JSON.stringify(metadata), id);
     return id;
   }
   const result = db.prepare(`
     INSERT INTO calendar_accounts (name, provider, is_reminder, blurbs_enabled, credentials, metadata)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).run(name, provider, is_reminder ? 1 : 0, 1, encCredentials, JSON.stringify(metadata));
+  `).run(name, provider, is_reminder ? 1 : 0, 1, JSON.stringify(credentials), JSON.stringify(metadata));
   return result.lastInsertRowid;
 }
 
@@ -114,13 +114,13 @@ function upsertEmailAccount(data) {
   // Replace entirely
   db.prepare('DELETE FROM email_account').run();
   db.prepare('INSERT INTO email_account (provider, credentials) VALUES (?, ?)').run(
-    provider, encrypt(JSON.stringify(credentials))
+    provider, JSON.stringify(credentials)
   );
 }
 
 function updateEmailCredentials(credentials) {
   db.prepare('UPDATE email_account SET credentials = ? WHERE id = (SELECT id FROM email_account ORDER BY id DESC LIMIT 1)').run(
-    encrypt(JSON.stringify(credentials))
+    JSON.stringify(credentials)
   );
 }
 
@@ -163,15 +163,46 @@ function clearLogs() {
   db.prepare('DELETE FROM send_log').run();
 }
 
+// ── RECIPIENTS HELPERS ────────────────────────────────────────
+function getRecipients() {
+  return db.prepare('SELECT * FROM recipients ORDER BY id').all();
+}
+
+function addRecipient(email, name, include_pdf) {
+  return db.prepare('INSERT INTO recipients (email, name, include_pdf, active) VALUES (?, ?, ?, 1)')
+    .run(email, name || null, include_pdf ? 1 : 0);
+}
+
+function updateRecipient(id, { email, name, include_pdf, active }) {
+  db.prepare('UPDATE recipients SET email=?, name=?, include_pdf=?, active=? WHERE id=?')
+    .run(email, name || null, include_pdf ? 1 : 0, active ? 1 : 0, id);
+}
+
+function deleteRecipient(id) {
+  db.prepare('DELETE FROM recipients WHERE id = ?').run(id);
+}
+
+// ── BLURB CACHE HELPERS ───────────────────────────────────────
+function getBlurbCache(key) {
+  return db.prepare('SELECT blurb, travel FROM blurb_cache WHERE cache_key = ?').get(key);
+}
+
+function setBlurbCache(key, blurb, travel) {
+  db.prepare('INSERT OR REPLACE INTO blurb_cache (cache_key, blurb, travel) VALUES (?, ?, ?)')
+    .run(key, blurb || '', travel || '');
+}
+
+function pruneBlurbCache(daysOld = 14) {
+  db.prepare("DELETE FROM blurb_cache WHERE created_at < datetime('now', ?)").run(`-${daysOld} days`);
+}
+
 // ── INTERNAL ──────────────────────────────────────────────────
 function parseJsonFields(row) {
   const out = { ...row };
-  // credentials may be encrypted; metadata is not
-  if (out.credentials) {
-    try { out.credentials = JSON.parse(decrypt(out.credentials)); } catch { /* leave as string */ }
-  }
-  if (out.metadata) {
-    try { out.metadata = JSON.parse(out.metadata); } catch { /* leave as string */ }
+  for (const field of ['credentials', 'metadata']) {
+    if (out[field]) {
+      try { out[field] = JSON.parse(out[field]); } catch { /* leave as string */ }
+    }
   }
   return out;
 }
@@ -196,4 +227,11 @@ module.exports = {
   getRecentLogs,
   getLogs,
   clearLogs,
+  getRecipients,
+  addRecipient,
+  updateRecipient,
+  deleteRecipient,
+  getBlurbCache,
+  setBlurbCache,
+  pruneBlurbCache,
 };
