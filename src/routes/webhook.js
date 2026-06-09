@@ -1,17 +1,26 @@
 'use strict';
 
-const express = require('express');
-const db      = require('../db/index');
+const express   = require('express');
+const rateLimit = require('express-rate-limit');
+const db        = require('../db/index');
 const { sendDailyNewsletter } = require('../services/newsletter');
 
 const router = express.Router();
+
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many webhook requests. Try again shortly.' },
+});
 
 /**
  * POST /webhook/:secret
  * Trigger an immediate newsletter send if the secret matches.
  * Designed to be called by automations (Home Assistant, Zapier, Make, etc.)
  */
-router.post('/:secret', async (req, res) => {
+router.post('/:secret', webhookLimiter, async (req, res) => {
   const stored = db.getConfig('webhook_secret');
   if (!stored || req.params.secret !== stored) {
     return res.status(401).json({ error: 'Invalid webhook secret' });

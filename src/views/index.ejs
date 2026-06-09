@@ -175,7 +175,7 @@ document.getElementById('sendNowBtn')?.addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = 'Sending…';
   try {
-    const res  = await fetch('/api/send-now', { method: 'POST' });
+    const res  = await fetch('/api/send-now', { method: 'POST', headers: { 'x-csrf-token': getCsrfToken() } });
     const data = await res.json();
     btn.textContent = data.ok ? 'Started!' : 'Error';
   } catch {
@@ -204,7 +204,7 @@ document.getElementById('testSendConfirmBtn')?.addEventListener('click', async (
   try {
     const res  = await fetch('/api/send-test', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
       body:    JSON.stringify({ email }),
     });
     const data = await res.json();

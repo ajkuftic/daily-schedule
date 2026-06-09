@@ -6,6 +6,7 @@
 <% if (flash && flash.error) { %><div class="alert alert-error"><%= flash.error %></div><% } %>
 
 <form method="POST" action="/setup/calendars/<%= account.id %>/edit" class="form">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <div class="card" style="margin-bottom:24px;">
     <div class="form-group" style="margin-bottom:0;">
       <label>Account label</label>

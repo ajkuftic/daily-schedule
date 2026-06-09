@@ -6,6 +6,7 @@
 <% if (flash && flash.error) { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
 <form method="POST" action="/setup/calendars/caldav-pick" class="form">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <input type="hidden" name="calendars_json" value="<%= JSON.stringify(calendars) %>">
 
   <div class="card" style="margin-bottom:24px;">

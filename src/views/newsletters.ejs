@@ -48,6 +48,7 @@
           <% } %>
           <form method="POST" action="/newsletters/<%= u.id %>/delete" style="display:inline;"
                 onsubmit="return confirm('Remove this record? The file in storage will not be deleted.')">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--muted);">✕</button>
           </form>
         </td>
@@ -84,7 +85,7 @@ function getLink(id) {
   row.style.display = '';
   input.value = '';
 
-  fetch('/newsletters/' + id + '/link', { method: 'POST' })
+  fetch('/newsletters/' + id + '/link', { method: 'POST', headers: { 'x-csrf-token': getCsrfToken() } })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       btn.disabled = false;

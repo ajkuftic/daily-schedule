@@ -6,6 +6,7 @@
   </div>
   <% if (tab === 'sends') { %>
   <form method="POST" action="/logs/clear-sends" onsubmit="return confirm('Clear all send log entries?')">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <button type="submit" class="btn btn-ghost btn-sm">Clear send log</button>
   </form>
   <% } else { %>
