@@ -51,16 +51,19 @@ if (isProduction) {
   }
 }
 
+// Trust reverse-proxy headers (X-Forwarded-Proto, etc.) so req.secure is correct
+app.set('trust proxy', 1);
+
 app.use(session({
   store:  new BetterSqliteStore(require('./db/index').db),
   secret: process.env.SESSION_SECRET || 'change-me',
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true,  // must be true so CSRF-only sessions are persisted on GET
   cookie: {
     maxAge:   7 * 24 * 60 * 60 * 1000, // 1 week
     httpOnly: true,
     sameSite: 'lax',
-    secure:   isProduction,
+    secure:   isProduction ? 'auto' : false, // 'auto' honours X-Forwarded-Proto via trust proxy
   },
 }));
 
