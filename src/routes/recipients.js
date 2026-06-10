@@ -22,18 +22,25 @@ router.post('/recipients/add', (req, res) => {
   }
 });
 
-// POST /setup/recipients/:id/update
-router.post('/recipients/:id/update', (req, res) => {
+// POST /setup/recipients/update-all  — bulk save from the single-form table
+router.post('/recipients/update-all', (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    const { email, name, include_pdf, active } = req.body;
-    if (!email) throw new Error('Email is required');
-    db.updateRecipient(id, {
-      email:       email.trim(),
-      name:        (name || '').trim() || null,
-      include_pdf: include_pdf === '1',
-      active:      active === '1',
-    });
+    const ids     = [].concat(req.body.ids     || []);
+    const emails  = req.body.email       || {};
+    const names   = req.body.name        || {};
+    const pdfs    = req.body.include_pdf || {};
+    const actives = req.body.active      || {};
+
+    for (const id of ids) {
+      const email = (emails[id] || '').trim();
+      if (!email) continue;
+      db.updateRecipient(parseInt(id, 10), {
+        email,
+        name:        (names[id] || '').trim() || null,
+        include_pdf: pdfs[id] === '1',
+        active:      actives[id] === '1',
+      });
+    }
     res.redirect('/setup/recipients?saved=1');
   } catch (err) {
     res.redirect('/setup/recipients?error=' + encodeURIComponent(err.message));
