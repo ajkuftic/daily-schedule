@@ -25,19 +25,17 @@ router.post('/recipients/add', (req, res) => {
 // POST /setup/recipients/update-all  — bulk save from the single-form table
 router.post('/recipients/update-all', (req, res) => {
   try {
-    const emails  = req.body.email       || {};
-    const names   = req.body.name        || {};
-    const pdfs    = req.body.include_pdf || {};
-    const actives = req.body.active      || {};
-
-    for (const id of Object.keys(emails)) {
-      const email = (emails[id] || '').trim();
+    // rid is a hidden field inside <td> — one per row, reliably submitted.
+    // [].concat handles both a single string and an array of strings.
+    const ids = [].concat(req.body.rid || []);
+    for (const id of ids) {
+      const email = (req.body[`email_${id}`] || '').trim();
       if (!email) continue;
       db.updateRecipient(parseInt(id, 10), {
         email,
-        name:        (names[id] || '').trim() || null,
-        include_pdf: pdfs[id] === '1',
-        active:      actives[id] === '1',
+        name:        (req.body[`name_${id}`] || '').trim() || null,
+        include_pdf: req.body[`include_pdf_${id}`] === '1',
+        active:      req.body[`active_${id}`] === '1',
       });
     }
     res.redirect('/setup/recipients?saved=1');
