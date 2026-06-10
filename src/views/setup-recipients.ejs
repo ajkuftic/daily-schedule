@@ -7,39 +7,47 @@
 <% if (flash.deleted) { %><div class="alert alert-success">Recipient removed.</div><% } %>
 <% if (flash.error)   { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
+<%# Delete forms live outside the main form so they don't nest %>
+<% for (const r of recipients) { %>
+  <form id="delete-<%= r.id %>" method="POST" action="/setup/recipients/<%= r.id %>/delete">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  </form>
+<% } %>
+
 <% if (recipients.length > 0) { %>
-<div class="card" style="margin-bottom:24px;">
-  <h3>Current Recipients</h3>
-  <table class="table">
-    <thead><tr><th>Email</th><th>Name</th><th>PDF</th><th>Active</th><th></th></tr></thead>
-    <tbody>
-      <% for (const r of recipients) { %>
-        <tr>
-          <form method="POST" action="/setup/recipients/<%= r.id %>/update">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <td><input type="email" name="email" value="<%= r.email %>" required style="width:100%;min-width:180px;"></td>
-            <td><input type="text" name="name" value="<%= r.name || '' %>" placeholder="Optional name" style="width:100%;"></td>
+<form method="POST" action="/setup/recipients/update-all" class="form">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="card" style="margin-bottom:24px;">
+    <h3>Current Recipients</h3>
+    <table class="table">
+      <thead><tr><th>Email</th><th>Name</th><th>PDF</th><th>Active</th><th></th></tr></thead>
+      <tbody>
+        <% for (const r of recipients) { %>
+          <tr>
+            <input type="hidden" name="ids" value="<%= r.id %>">
+            <td><input type="email" name="email[<%= r.id %>]" value="<%= r.email %>" required style="width:100%;min-width:180px;"></td>
+            <td><input type="text"  name="name[<%= r.id %>]"  value="<%= r.name || '' %>" placeholder="Optional name" style="width:100%;"></td>
             <td style="text-align:center;">
-              <input type="hidden" name="include_pdf" value="0">
-              <input type="checkbox" name="include_pdf" value="1" <%= r.include_pdf ? 'checked' : '' %>>
+              <input type="checkbox" name="include_pdf[<%= r.id %>]" value="1" <%= r.include_pdf ? 'checked' : '' %>>
             </td>
             <td style="text-align:center;">
-              <input type="hidden" name="active" value="0">
-              <input type="checkbox" name="active" value="1" <%= r.active ? 'checked' : '' %>>
+              <input type="checkbox" name="active[<%= r.id %>]" value="1" <%= r.active ? 'checked' : '' %>>
             </td>
             <td style="white-space:nowrap;">
-              <button type="submit" class="btn btn-sm btn-ghost">Save</button>
-          </form>
-              <form method="POST" action="/setup/recipients/<%= r.id %>/delete" style="display:inline;">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this recipient?')">Remove</button>
-              </form>
+              <button type="submit" form="delete-<%= r.id %>"
+                class="btn btn-sm btn-danger"
+                onclick="return confirm('Remove this recipient?')">Remove</button>
             </td>
-        </tr>
-      <% } %>
-    </tbody>
-  </table>
-</div>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save All</button>
+    <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
+  </div>
+</form>
 <% } else { %>
 <div class="alert alert-info">No recipients yet. Add one below.</div>
 <% } %>
@@ -60,14 +68,12 @@
     </div>
     <div class="form-group">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-        <input type="hidden" name="include_pdf" value="0">
         <input type="checkbox" name="include_pdf" value="1" checked>
         Include PDF attachment
       </label>
     </div>
     <div class="form-actions">
       <button type="submit" class="btn btn-primary">Add Recipient</button>
-      <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
     </div>
   </form>
 </div>
