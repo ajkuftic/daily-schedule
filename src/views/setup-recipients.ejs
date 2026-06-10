@@ -7,13 +7,6 @@
 <% if (flash.deleted) { %><div class="alert alert-success">Recipient removed.</div><% } %>
 <% if (flash.error)   { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
-<%# Delete forms live outside the main form so they don't nest %>
-<% for (const r of recipients) { %>
-  <form id="delete-<%= r.id %>" method="POST" action="/setup/recipients/<%= r.id %>/delete">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-  </form>
-<% } %>
-
 <% if (recipients.length > 0) { %>
 <form method="POST" action="/setup/recipients/update-all" class="form">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -24,18 +17,20 @@
       <tbody>
         <% for (const r of recipients) { %>
           <tr>
-            <td><input type="email" name="email[<%= r.id %>]" value="<%= r.email %>" required style="width:100%;min-width:180px;"></td>
-            <td><input type="text"  name="name[<%= r.id %>]"  value="<%= r.name || '' %>" placeholder="Optional name" style="width:100%;"></td>
+            <td>
+              <input type="hidden" name="rid" value="<%= r.id %>">
+              <input type="email" name="email_<%= r.id %>" value="<%= r.email %>" required style="width:100%;min-width:180px;">
+            </td>
+            <td><input type="text" name="name_<%= r.id %>" value="<%= r.name || '' %>" placeholder="Optional name" style="width:100%;"></td>
             <td style="text-align:center;">
-              <input type="checkbox" name="include_pdf[<%= r.id %>]" value="1" <%= r.include_pdf ? 'checked' : '' %>>
+              <input type="checkbox" name="include_pdf_<%= r.id %>" value="1" <%= r.include_pdf ? 'checked' : '' %>>
             </td>
             <td style="text-align:center;">
-              <input type="checkbox" name="active[<%= r.id %>]" value="1" <%= r.active ? 'checked' : '' %>>
+              <input type="checkbox" name="active_<%= r.id %>" value="1" <%= r.active ? 'checked' : '' %>>
             </td>
             <td style="white-space:nowrap;">
-              <button type="submit" form="delete-<%= r.id %>"
-                class="btn btn-sm btn-danger"
-                onclick="return confirm('Remove this recipient?')">Remove</button>
+              <button type="button" class="btn btn-sm btn-danger"
+                onclick="deleteRecipient(<%= r.id %>)">Remove</button>
             </td>
           </tr>
         <% } %>
@@ -76,5 +71,21 @@
     </div>
   </form>
 </div>
+
+<script>
+function deleteRecipient(id) {
+  if (!confirm('Remove this recipient?')) return;
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/setup/recipients/' + id + '/delete';
+  var csrf = document.createElement('input');
+  csrf.type = 'hidden';
+  csrf.name = '_csrf';
+  csrf.value = getCsrfToken();
+  form.appendChild(csrf);
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>
 
 <%- include('_foot') %>
