@@ -24,7 +24,6 @@
       <tbody>
         <% for (const r of recipients) { %>
           <tr>
-            <input type="hidden" name="ids" value="<%= r.id %>">
             <td><input type="email" name="email[<%= r.id %>]" value="<%= r.email %>" required style="width:100%;min-width:180px;"></td>
             <td><input type="text"  name="name[<%= r.id %>]"  value="<%= r.name || '' %>" placeholder="Optional name" style="width:100%;"></td>
             <td style="text-align:center;">
