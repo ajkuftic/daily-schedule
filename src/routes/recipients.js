@@ -25,13 +25,12 @@ router.post('/recipients/add', (req, res) => {
 // POST /setup/recipients/update-all  — bulk save from the single-form table
 router.post('/recipients/update-all', (req, res) => {
   try {
-    const ids     = [].concat(req.body.ids     || []);
     const emails  = req.body.email       || {};
     const names   = req.body.name        || {};
     const pdfs    = req.body.include_pdf || {};
     const actives = req.body.active      || {};
 
-    for (const id of ids) {
+    for (const id of Object.keys(emails)) {
       const email = (emails[id] || '').trim();
       if (!email) continue;
       db.updateRecipient(parseInt(id, 10), {
