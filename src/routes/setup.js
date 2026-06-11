@@ -73,12 +73,10 @@ router.get('/family', (req, res) => {
 
 router.post('/family', (req, res) => {
   try {
-    const { family_name, send_to, from_name, timezone, default_city, default_lat, default_lon, alert_email } = req.body;
+    const { family_name, from_name, timezone, default_city, default_lat, default_lon, alert_email } = req.body;
     if (!family_name) throw new Error('Family name is required');
-    if (!send_to)     throw new Error('Send-to email is required');
     if (!timezone)    throw new Error('Timezone is required');
     db.setConfig('family_name',  family_name);
-    db.setConfig('send_to',      send_to);
     db.setConfig('from_name',    from_name || `The Daily ${family_name}`);
     db.setConfig('timezone',     timezone);
     db.setConfig('default_city', default_city);
