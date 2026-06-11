@@ -257,7 +257,16 @@ router.get('/email', (req, res) => {
 router.post('/email/smtp', async (req, res) => {
   try {
     const { host, port, user, password, from } = req.body;
-    if (!host || !user || !password) throw new Error('Host, username, and password are required');
+    if (!host || !user) throw new Error('Host and username are required');
+
+    // Allow blank password on edit — keep the existing one
+    let finalPassword = password;
+    if (!finalPassword) {
+      const existing = db.getEmailAccount();
+      if (!existing) throw new Error('Password is required for a new configuration');
+      finalPassword = existing.credentials.password;
+    }
+
     const portNum  = parseInt(port, 10) || 587;
     const secure   = portNum === 465;
     const transport = nodemailer.createTransport({
@@ -265,12 +274,12 @@ router.post('/email/smtp', async (req, res) => {
       port:       portNum,
       secure,
       requireTLS: !secure,
-      auth:       { user, pass: password },
+      auth:       { user, pass: finalPassword },
     });
     await transport.verify();
     db.upsertEmailAccount({
       provider:    'smtp',
-      credentials: { host, port: portNum, secure, user, password, from: from || user },
+      credentials: { host, port: portNum, secure, user, password: finalPassword, from: from || user },
     });
     res.redirect('/setup/email?saved=smtp');
   } catch (err) {
