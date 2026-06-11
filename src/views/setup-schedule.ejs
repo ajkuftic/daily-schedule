@@ -29,8 +29,9 @@
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Save &amp; Activate</button>
-    <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
   </div>
 </form>
+
+<%- include('_setup-nav', { prev: '/setup/blurbs', prevLabel: 'AI Blurbs', next: '/setup/webhooks', nextLabel: 'Webhooks' }) %>
 
 <%- include('_foot') %>

@@ -11,20 +11,32 @@
   <script>function getCsrfToken(){return document.querySelector('meta[name="csrf-token"]')?.content||'';}</script>
 </head>
 <body>
+<% var _p = currentPath || ''; %>
 <nav class="nav">
   <a href="/setup" class="nav-brand">Daily Schedule</a>
   <div class="nav-links">
-    <a href="/setup/family">Family</a>
-    <a href="/setup/recipients">Recipients</a>
-    <a href="/setup/calendars">Calendars</a>
-    <a href="/setup/email">Email</a>
-    <a href="/setup/api-keys">API Keys</a>
-    <a href="/setup/blurbs">Blurbs</a>
-    <a href="/setup/schedule">Schedule</a>
-    <a href="/setup/webhooks">Webhooks</a>
-    <a href="/setup/storage">Storage</a>
-    <a href="/newsletters">PDFs</a>
-    <a href="/logs">Logs</a>
+
+    <div class="nav-dropdown" id="nav-settings">
+      <button class="btn-nav-dropdown <%= _p.startsWith('/setup/') && _p !== '/setup/recipients' ? 'active' : '' %>"
+              onclick="toggleNavDropdown(event)">
+        Settings <span style="font-size:10px;opacity:0.7;">▾</span>
+      </button>
+      <div class="nav-dropdown-menu">
+        <a href="/setup/family"    class="<%= _p === '/setup/family'              ? 'nav-link-active' : '' %>">Family</a>
+        <a href="/setup/calendars" class="<%= _p.startsWith('/setup/calendars')   ? 'nav-link-active' : '' %>">Calendars</a>
+        <a href="/setup/email"     class="<%= _p === '/setup/email'               ? 'nav-link-active' : '' %>">Email</a>
+        <a href="/setup/api-keys"  class="<%= _p === '/setup/api-keys'            ? 'nav-link-active' : '' %>">API Keys</a>
+        <a href="/setup/blurbs"    class="<%= _p === '/setup/blurbs'              ? 'nav-link-active' : '' %>">AI Blurbs</a>
+        <a href="/setup/schedule"  class="<%= _p === '/setup/schedule'            ? 'nav-link-active' : '' %>">Schedule</a>
+        <a href="/setup/webhooks"  class="<%= _p === '/setup/webhooks'            ? 'nav-link-active' : '' %>">Webhooks</a>
+        <a href="/setup/storage"   class="<%= _p.startsWith('/setup/storage')     ? 'nav-link-active' : '' %>">Storage</a>
+        <a href="/setup/branding"  class="<%= _p === '/setup/branding'            ? 'nav-link-active' : '' %>">Branding</a>
+      </div>
+    </div>
+
+    <a href="/setup/recipients" class="<%= _p === '/setup/recipients' ? 'nav-link-active' : '' %>">Recipients</a>
+    <a href="/newsletters"      class="<%= _p === '/newsletters'      ? 'nav-link-active' : '' %>">PDFs</a>
+    <a href="/logs"             class="<%= _p === '/logs'             ? 'nav-link-active' : '' %>">Logs</a>
     <span class="nav-divider"></span>
     <button id="theme-toggle" class="btn-nav-theme" onclick="toggleTheme()"></button>
     <span class="nav-divider"></span>

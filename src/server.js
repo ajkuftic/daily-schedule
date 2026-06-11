@@ -89,13 +89,14 @@ app.get('/health', (req, res) => {
 
 app.use(requireAuth);                      // everything below requires login
 
-// Expose branding colors and CSRF token to all views
+// Expose branding colors, CSRF token, and current path to all views
 app.use((req, res, next) => {
   res.locals.branding = {
     primary: db.getConfig('branding_primary_color') || '#1a2e4a',
     accent:  db.getConfig('branding_accent_color')  || '#c9a96e',
   };
-  res.locals.csrfToken = req.csrfToken ? req.csrfToken() : '';
+  res.locals.csrfToken  = req.csrfToken ? req.csrfToken() : '';
+  res.locals.currentPath = req.path;
   next();
 });
 

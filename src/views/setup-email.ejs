@@ -221,8 +221,6 @@ function smtpPickProvider(val) {
 })();
 </script>
 
-<div class="form-actions" style="margin-top:24px;">
-  <a href="/setup/api-keys" class="btn btn-ghost">Next: API Keys &rarr;</a>
-</div>
+<%- include('_setup-nav', { prev: '/setup/calendars', prevLabel: 'Calendars', next: '/setup/api-keys', nextLabel: 'API Keys' }) %>
 
 <%- include('_foot') %>

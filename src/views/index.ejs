@@ -4,59 +4,65 @@
   <div>
     <h1>Daily Schedule</h1>
     <p class="subtitle">
-      <% if (config.family_name) { %>
-        <%= config.family_name %> Family &nbsp;&middot;&nbsp;
-      <% } %>
-      <% if (config.send_to) { %>
-        Sending to <strong><%= config.send_to %></strong>
+      <% if (config.family_name) { %><%= config.family_name %> Family &nbsp;&middot;&nbsp;<% } %>
+      <% var _active = (recipients || []).filter(function(r){ return r.active; }); %>
+      <% if (_active.length === 1) { %>
+        Sending to <strong><%= _active[0].email %></strong>
+      <% } else if (_active.length > 1) { %>
+        Sending to <strong><%= _active.length %> recipients</strong>
       <% } else { %>
-        <span class="warn">Not configured yet</span>
+        <span class="warn">No recipients configured — <a href="/setup/recipients">add one</a></span>
       <% } %>
     </p>
   </div>
-  <% if (config.setup_complete) { %>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <input type="date" id="previewDate" style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:#fff;" title="Preview date (defaults to tomorrow)">
-      <button class="btn btn-primary" id="sendNowBtn">Send Now</button>
-      <button class="btn btn-ghost" id="testSendBtn">Test Send…</button>
-      <a href="#" target="_blank" class="btn btn-ghost" id="previewBtn">Preview</a>
-      <a href="#" target="_blank" class="btn btn-ghost" id="pdfPreviewBtn"><%= config.html2pdf_api_key ? 'Preview PDF' : 'Preview PDF (no key)' %></a>
-    </div>
-    <!-- Test Send panel (hidden until button clicked) -->
-    <div id="testSendPanel" style="display:none;margin-top:10px;padding:14px 16px;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius);">
-      <p style="margin:0 0 10px;font-size:13px;color:var(--muted);">
-        Runs the full send pipeline — fetches calendar events, weather, generates PDF —
-        but delivers only to the address below. Skips printer, storage upload, and webhooks.
-        Subject is prefixed with <strong>[TEST]</strong>.
-      </p>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="email" id="testSendEmail" placeholder="you@example.com"
-          value="<%= config.send_to ? config.send_to.split(',')[0].trim() : '' %>"
-          style="flex:1;min-width:220px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--white);">
-        <button class="btn btn-primary" id="testSendConfirmBtn">Send Test</button>
-        <button class="btn btn-ghost" onclick="document.getElementById('testSendPanel').style.display='none'">Cancel</button>
-      </div>
-      <div id="testSendResult" style="margin-top:8px;font-size:13px;display:none;"></div>
-    </div>
-    <!-- Send Preview panel (hidden until Send Now clicked) -->
-    <div id="sendPreviewPanel" style="display:none;margin-top:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <strong style="font-size:14px;">Preview before sending</strong>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-primary" id="sendPreviewConfirm">Confirm &amp; Send</button>
-          <button class="btn btn-ghost" id="sendPreviewCancel">Cancel</button>
-        </div>
-      </div>
-      <iframe id="sendPreviewIframe" src="" style="width:100%;height:500px;border:1px solid var(--border);border-radius:var(--radius);" sandbox="allow-same-origin"></iframe>
-    </div>
-  <% } %>
 </div>
 
-<% if (!config.setup_complete) { %>
-  <div class="alert alert-info">
-    <strong>Welcome!</strong> Complete setup to start sending your daily newsletter.
-    <a href="/setup/family">Begin setup &rarr;</a>
+<% if (config.setup_complete) { %>
+<div class="action-bar">
+  <input type="date" id="previewDate"
+    style="padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--white);"
+    title="Preview date (defaults to tomorrow)">
+  <button class="btn btn-primary" id="sendNowBtn">Send Now</button>
+  <button class="btn btn-ghost" id="testSendBtn">Test Send…</button>
+  <a href="#" target="_blank" class="btn btn-ghost" id="previewBtn">Preview</a>
+  <a href="#" target="_blank" class="btn btn-ghost" id="pdfPreviewBtn"><%= config.html2pdf_api_key ? 'Preview PDF' : 'Preview PDF (no key)' %></a>
+</div>
+
+<!-- Test Send panel -->
+<div id="testSendPanel" style="display:none;margin-bottom:16px;padding:14px 16px;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius);">
+  <p style="margin:0 0 10px;font-size:13px;color:var(--muted);">
+    Runs the full send pipeline — fetches calendar events, weather, generates PDF —
+    but delivers only to the address below. Skips printer, storage upload, and webhooks.
+    Subject is prefixed with <strong>[TEST]</strong>.
+  </p>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <input type="email" id="testSendEmail" placeholder="you@example.com"
+      value="<%= (recipients || []).filter(function(r){ return r.active; })[0]?.email || '' %>"
+      style="flex:1;min-width:220px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--white);">
+    <button class="btn btn-primary" id="testSendConfirmBtn">Send Test</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('testSendPanel').style.display='none'">Cancel</button>
   </div>
+  <div id="testSendResult" style="margin-top:8px;font-size:13px;display:none;"></div>
+</div>
+
+<!-- Send Preview panel -->
+<div id="sendPreviewPanel" style="display:none;margin-bottom:16px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <strong style="font-size:14px;">Preview before sending</strong>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" id="sendPreviewConfirm">Confirm &amp; Send</button>
+      <button class="btn btn-ghost" id="sendPreviewCancel">Cancel</button>
+    </div>
+  </div>
+  <iframe id="sendPreviewIframe" src="" style="width:100%;height:500px;border:1px solid var(--border);border-radius:var(--radius);" sandbox="allow-same-origin"></iframe>
+</div>
+<% } %>
+
+<% if (!config.setup_complete) { %>
+<div class="alert alert-info">
+  <strong>Welcome!</strong> Complete setup to start sending your daily newsletter.
+  <a href="/setup/family">Begin setup &rarr;</a>
+</div>
 <% } %>
 
 <div class="card-grid">

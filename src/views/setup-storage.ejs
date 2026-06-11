@@ -218,7 +218,6 @@
     <% if (config.storage_provider === 's3' || config.storage_provider === 'google-drive' || config.storage_provider === 'local') { %>
     <button type="button" class="btn btn-ghost" id="test-upload-btn" onclick="testUpload()">Test Upload</button>
     <% } %>
-    <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
   </div>
 
   <div id="test-result" style="margin-top:12px;display:none;"></div>
@@ -295,5 +294,7 @@ function testUpload() {
     });
 }
 </script>
+
+<%- include('_setup-nav', { prev: '/setup/webhooks', prevLabel: 'Webhooks' }) %>
 
 <%- include('_foot') %>

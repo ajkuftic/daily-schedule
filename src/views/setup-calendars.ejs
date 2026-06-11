@@ -136,9 +136,7 @@
 
 </div>
 
-<div class="form-actions" style="margin-top:24px;">
-  <a href="/setup/email" class="btn btn-ghost">Next: Email &rarr;</a>
-</div>
+<%- include('_setup-nav', { prev: '/setup/family', prevLabel: 'Family', next: '/setup/email', nextLabel: 'Email' }) %>
 
 <script>
 const CALDAV_PROVIDERS = {

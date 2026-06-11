@@ -233,3 +233,77 @@ details summary::-webkit-details-marker { display: none; }
 [data-theme="dark"] .badge-smtp    { background: #052e16; color: #6ee7b7; }
 [data-theme="dark"] .badge-success { background: #052e16; color: #6ee7b7; }
 [data-theme="dark"] .badge-error   { background: #2d0a0a; color: #fca5a5; }
+
+/* ── ACTION BAR ──────────────────────────────── */
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 24px;
+}
+
+/* ── SETUP NAV ───────────────────────────────── */
+.setup-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── NAV DROPDOWN ────────────────────────────── */
+.nav-dropdown { position: relative; }
+.btn-nav-dropdown {
+  background: none;
+  border: none;
+  color: #b0bfd4;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-nav-dropdown:hover { color: #fff; }
+.btn-nav-dropdown.active { color: #fff; }
+.nav-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #162540;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius);
+  min-width: 180px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  padding: 6px 0;
+}
+.nav-dropdown.open .nav-dropdown-menu { display: block; }
+.nav-dropdown-menu a {
+  display: block;
+  padding: 8px 16px;
+  color: #b0bfd4 !important;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.nav-dropdown-menu a:hover { color: #fff !important; background: rgba(255,255,255,0.06); }
+.nav-dropdown-menu a.nav-link-active { color: #fff !important; font-weight: 600; }
+.nav-links a.nav-link-active { color: #fff; }
+
+/* improved focus ring */
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(26,46,74,0.12);
+}

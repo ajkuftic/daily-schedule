@@ -1,0 +1,12 @@
+<div class="setup-nav">
+  <% if (typeof prev !== 'undefined' && prev) { %>
+    <a href="<%= prev %>" class="btn btn-ghost">&larr; <%= prevLabel || 'Back' %></a>
+  <% } else { %>
+    <a href="/setup" class="btn btn-ghost">&larr; Dashboard</a>
+  <% } %>
+  <% if (typeof next !== 'undefined' && next) { %>
+    <a href="<%= next %>" class="btn btn-ghost"><%= nextLabel || 'Next' %> &rarr;</a>
+  <% } else { %>
+    <span></span>
+  <% } %>
+</div>
