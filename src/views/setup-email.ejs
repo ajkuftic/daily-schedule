@@ -1,21 +1,16 @@
 <%- include('_head', { title: 'Email Setup' }) %>
 
 <h1>Email Sender</h1>
-<p class="subtitle">Configure SMTP to send the daily newsletter.</p>
+<p class="subtitle"><%= account ? 'Update your SMTP configuration.' : 'Configure SMTP to send the daily newsletter.' %></p>
 
 <% if (flash.saved)   { %><div class="alert alert-success">SMTP connection verified and saved.</div><% } %>
 <% if (flash.error)   { %><div class="alert alert-error">Error: <%= flash.error %></div><% } %>
 
-<% if (account) { %>
-  <div class="alert alert-info">
-    Currently configured: <strong><%= account.provider %></strong>
-    (<%= account.credentials?.email || account.credentials?.user || 'connected' %>)
-  </div>
-<% } %>
-
 <div class="card">
-  <h3>SMTP</h3>
+  <h3>SMTP<% if (account) { %> — Edit Configuration<% } %></h3>
+  <% if (!account) { %>
   <p class="muted">Connect any email account to send the newsletter.</p>
+  <% } %>
 
   <form method="POST" action="/setup/email/smtp" class="form" id="smtp-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -35,11 +30,11 @@
       </select>
     </div>
 
-    <div id="smtp-guide" class="alert alert-info" style="font-size:14px;line-height:1.6;"></div>
+    <div id="smtp-guide" class="alert alert-info" style="font-size:14px;line-height:1.6;display:none;"></div>
 
     <div class="form-group">
       <label>SMTP Host</label>
-      <input type="text" name="host" id="smtp-host" placeholder="smtp.fastmail.com" required>
+      <input type="text" name="host" id="smtp-host" placeholder="smtp.fastmail.com" required autocomplete="off">
     </div>
     <div class="form-group" id="smtp-port-group" style="display:none;">
       <label>Port</label>
@@ -48,15 +43,18 @@
     <input type="hidden" name="port" id="smtp-port-hidden" value="465">
     <div class="form-group">
       <label>Username</label>
-      <input type="text" name="user" id="smtp-user" placeholder="you@example.com" required autocomplete="username">
+      <input type="email" name="user" id="smtp-user" placeholder="you@example.com" required autocomplete="email">
     </div>
     <div class="form-group">
       <label id="smtp-password-label">Password / App Password</label>
-      <input type="password" name="password" required autocomplete="current-password">
+      <input type="password" name="password" id="smtp-password"
+        <% if (account) { %>placeholder="••••••••"<% } else { %>required<% } %>
+        autocomplete="current-password">
+      <% if (account) { %><p class="field-hint">Leave blank to keep the current password.</p><% } %>
     </div>
     <div class="form-group">
       <label>From Address <span class="hint">(defaults to username)</span></label>
-      <input type="email" name="from" placeholder="you@example.com">
+      <input type="email" name="from" id="smtp-from" placeholder="you@example.com" autocomplete="email">
     </div>
     <button type="submit" class="btn btn-primary">Save &amp; Verify</button>
   </form>
@@ -170,10 +168,9 @@ function smtpPickProvider(val) {
 
   if (val === 'custom') {
     hostEl.readOnly = false;
-    hostEl.value = '';
     portGroup.style.display = '';
     portHidden.disabled = true;
-    portVisible.value = 587;
+    portVisible.value = portVisible.value || 587;
   } else {
     hostEl.readOnly = true;
     hostEl.value = p.host;
@@ -185,8 +182,43 @@ function smtpPickProvider(val) {
   userEl.placeholder = p.userPlaceholder;
 }
 
-// Init on load
-smtpPickProvider(document.getElementById('smtp-provider').value);
+// Initialise — pre-populate from saved account if present, otherwise pick first provider
+(function init() {
+  <% if (account && account.credentials) { %>
+  var saved = <%- JSON.stringify({
+    host: account.credentials.host || '',
+    port: String(account.credentials.port || 587),
+    user: account.credentials.user || '',
+    from: account.credentials.from || '',
+  }) %>;
+
+  var HOST_TO_PROVIDER = {
+    'smtp.fastmail.com':    'fastmail',
+    'smtp.mail.me.com':     'icloud',
+    'smtp.gmail.com':       'gmail',
+    'smtp.mail.yahoo.com':  'yahoo',
+    'smtp.office365.com':   'outlook',
+    'smtp.zoho.com':        'zoho',
+    'smtp.sendgrid.net':    'sendgrid',
+    'smtp.mailgun.org':     'mailgun',
+  };
+  var provider = HOST_TO_PROVIDER[saved.host] || 'custom';
+
+  document.getElementById('smtp-provider').value = provider;
+  smtpPickProvider(provider);
+
+  // Restore actual values (smtpPickProvider sets host for known providers already;
+  // for custom we need to set host + port manually)
+  if (provider === 'custom') {
+    document.getElementById('smtp-host').value = saved.host;
+    document.getElementById('smtp-port').value = saved.port;
+  }
+  document.getElementById('smtp-user').value = saved.user;
+  document.getElementById('smtp-from').value = saved.from;
+  <% } else { %>
+  smtpPickProvider(document.getElementById('smtp-provider').value);
+  <% } %>
+})();
 </script>
 
 <div class="form-actions" style="margin-top:24px;">
