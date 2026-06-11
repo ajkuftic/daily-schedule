@@ -180,14 +180,7 @@ async function sendDailyNewsletter(config, { testEmail, targetDate } = {}) {
     // Real send: use recipients table
     const recipients = db.getRecipients().filter(r => r.active);
     if (recipients.length === 0) {
-      // Fallback to config.send_to if no recipients configured
-      const fallbackTo = config.send_to;
-      if (!fallbackTo) throw new Error('No active recipients configured');
-      const attachments = pdf ? [pdf] : [];
-      const cc = pdf && config.epson_connect_email && config.epson_enabled === '1'
-        ? config.epson_connect_email : undefined;
-      await sendEmail({ emailAccount, to: fallbackTo, subject, htmlBody: emailHtml, fromName, attachments, cc });
-      sendTo = fallbackTo;
+      throw new Error('No active recipients configured. Add recipients at Setup → Recipients.');
     } else {
       const withPdf    = recipients.filter(r => r.include_pdf).map(r => r.email);
       const withoutPdf = recipients.filter(r => !r.include_pdf).map(r => r.email);
