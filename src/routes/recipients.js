@@ -7,7 +7,8 @@ const router  = express.Router();
 // GET /setup/recipients
 router.get('/recipients', (req, res) => {
   const recipients = db.getRecipients();
-  res.render('setup-recipients', { recipients, flash: req.query });
+  const config = db.getAllConfig();
+  res.render('setup-recipients', { recipients, config, flash: req.query });
 });
 
 // POST /setup/recipients/add

@@ -290,8 +290,7 @@ router.post('/email/smtp', async (req, res) => {
 
 // ── SCHEDULE ──────────────────────────────────────────────────
 router.get('/schedule', (req, res) => {
-  const config = db.getAllConfig();
-  res.render('setup-schedule', { config, flash: req.query });
+  res.redirect('/setup/recipients');
 });
 
 router.post('/schedule', (req, res) => {
@@ -325,9 +324,9 @@ router.post('/schedule', (req, res) => {
     db.setConfig('schedule_minute', minute);
     db.setConfig('setup_complete', true);
     reschedule();
-    res.redirect('/setup/schedule?saved=1');
+    res.redirect('/setup/recipients?saved=1');
   } catch (err) {
-    errRedirect(res, '/setup/schedule', err);
+    errRedirect(res, '/setup/recipients', err);
   }
 });
 
