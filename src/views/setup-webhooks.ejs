@@ -152,9 +152,7 @@
   </form>
 </div>
 
-<div class="form-actions" style="margin-top:24px;">
-  <a href="/setup" class="btn btn-ghost">Back to Dashboard</a>
-</div>
+<%- include('_setup-nav', { prev: '/setup/schedule', prevLabel: 'Schedule', next: '/setup/storage', nextLabel: 'Storage' }) %>
 
 <style>
 .webhook-url {

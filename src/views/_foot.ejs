@@ -12,6 +12,22 @@ function updateThemeButton(theme) {
   if (btn) btn.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
 }
 updateThemeButton(document.documentElement.getAttribute('data-theme') || 'light');
+
+// Settings nav dropdown
+function toggleNavDropdown(e) {
+  e.stopPropagation();
+  var d = document.getElementById('nav-settings');
+  if (d) d.classList.toggle('open');
+}
+document.addEventListener('click', function() {
+  var d = document.getElementById('nav-settings');
+  if (d) d.classList.remove('open');
+});
+
+// Strip flash query params from URL after render so refresh doesn't replay them
+if (window.location.search) {
+  history.replaceState(null, '', window.location.pathname);
+}
 </script>
 </body>
 </html>

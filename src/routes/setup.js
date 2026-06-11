@@ -58,11 +58,12 @@ async function fetchCalDAVCalendars({ serverUrl, username, password, authMethod 
 
 // ── DASHBOARD ─────────────────────────────────────────────────
 router.get('/', (req, res) => {
-  const config = db.getAllConfig();
-  const logs   = db.getRecentLogs(10);
-  const calendars = db.getCalendarAccounts();
+  const config       = db.getAllConfig();
+  const logs         = db.getRecentLogs(10);
+  const calendars    = db.getCalendarAccounts();
   const emailAccount = db.getEmailAccount();
-  res.render('index', { config, logs, calendars, emailAccount, flash: req.query });
+  const recipients   = db.getRecipients();
+  res.render('index', { config, logs, calendars, emailAccount, recipients, flash: req.query });
 });
 
 // ── FAMILY / GENERAL SETTINGS ─────────────────────────────────
