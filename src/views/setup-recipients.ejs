@@ -72,6 +72,33 @@
   </form>
 </div>
 
+<div class="card" style="margin-top:24px;">
+  <h3>Delivery Schedule</h3>
+  <p class="muted">Choose when to send the daily newsletter.</p>
+  <form method="POST" action="/setup/schedule" class="form" style="margin-top:16px;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="form-group">
+      <label>Send Time</label>
+      <%
+        const _h = parseInt(config.schedule_hour ?? 7, 10);
+        const _m = parseInt(config.schedule_minute ?? 0, 10);
+        const _period = _h < 12 ? 'AM' : 'PM';
+        const _display12 = _h === 0 ? 12 : _h > 12 ? _h - 12 : _h;
+        const _currentVal = `${_display12}:${String(_m).padStart(2,'0')} ${_period}`;
+      %>
+      <input type="text" name="send_time" id="send_time"
+             value="<%= _currentVal %>"
+             placeholder="e.g. 9:00 PM or 21:00"
+             autocomplete="off"
+             style="max-width:200px;">
+      <p class="field-hint">Times are in <%= config.timezone || 'America/New_York' %>. The newsletter always covers <em>tomorrow's</em> events — sending at night gives you a preview before bed.</p>
+    </div>
+    <button type="submit" class="btn btn-primary">Save &amp; Activate</button>
+  </form>
+</div>
+
+<%- include('_setup-nav', { prev: '/setup/blurbs', prevLabel: 'AI Blurbs', next: '/setup/webhooks', nextLabel: 'Webhooks' }) %>
+
 <script>
 function deleteRecipient(id) {
   if (!confirm('Remove this recipient?')) return;
