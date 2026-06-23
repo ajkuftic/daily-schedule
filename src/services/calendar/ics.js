@@ -95,12 +95,14 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
         // Recurring all-day: check if isoDate is a valid occurrence
         if (!isAllDayOccurrence(rawDate, endDate, rruleStr, exdateValues, isoDate)) continue;
         if (overriddenInstances.has(`${uid}:${isoDate}`)) continue;
+        console.log(`[ics:allday] "${getProp('SUMMARY')}" matched via RRULE — DTSTART=${rawDate} RRULE=${rruleStr}`);
         rawDate = isoDate;
         start   = new Date(`${isoDate}T00:00:00`);
         end     = new Date(`${isoDate}T00:00:00`);
       } else {
         // Single / multi-day: include if isoDate falls within [rawDate, endDate)
         if (isoDate < rawDate || isoDate >= endDate) continue;
+        console.log(`[ics:allday] "${getProp('SUMMARY')}" matched directly — DTSTART=${rawDate} DTEND=${endDate}`);
         start = new Date(`${rawDate}T00:00:00`);
         end   = new Date(`${endDate}T00:00:00`);
       }
