@@ -147,7 +147,18 @@ function parseICS(icsText, isoDate, defaultTz, calendarName) {
 function isAllDayOccurrence(rawStart, rawEnd, rruleStr, exdateStr, isoDate) {
   try {
     const dtstart = new Date(`${rawStart}T00:00:00Z`);
-    const rule = new RRule({ ...RRule.parseString(rruleStr), dtstart });
+
+    // Some calendar apps (e.g. Apple Calendar birthday exports) emit
+    // FREQ=YEARLY;BYMONTHDAY=N without BYMONTH. Per RFC 5545 that expands
+    // to the Nth of *every* month, not just the start month — clearly not
+    // the intent for a birthday. Inject BYMONTH from DTSTART to fix it.
+    let fixedRrule = rruleStr;
+    if (/FREQ=YEARLY/i.test(rruleStr) && /BYMONTHDAY=/i.test(rruleStr) && !/BYMONTH=/i.test(rruleStr)) {
+      const month = parseInt(rawStart.split('-')[1], 10);
+      fixedRrule = rruleStr + `;BYMONTH=${month}`;
+    }
+
+    const rule = new RRule({ ...RRule.parseString(fixedRrule), dtstart });
 
     // Build exclusion set
     const exdates = buildExdateSet(exdateStr, 'UTC');
