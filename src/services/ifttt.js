@@ -45,6 +45,7 @@ function buildPlainText(weather, events, clothingTip, timezone) {
   lines.push(`Condition: ${weather.condition}`);
   lines.push(`High: ${weather.high}°F / ${weather.highC}°C`);
   lines.push(`Low: ${weather.low}°F / ${weather.lowC}°C`);
+  lines.push(`Feels Like: ${weather.feelsLikeHigh}°F / ${weather.feelsLikeHighC}°C high · ${weather.feelsLikeLow}°F / ${weather.feelsLikeLowC}°C low`);
   lines.push(`Rain Chance: ${weather.rainChance}% chance of rain`);
 
   // ── Clothing tip ──────────────────────────────────────────────

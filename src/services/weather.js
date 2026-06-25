@@ -7,7 +7,7 @@ async function fetchWeather(lat, lon, isoDate) {
   const params = {
     latitude:  lat,
     longitude: lon,
-    daily:     'temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode',
+    daily:     'temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_probability_max,weathercode',
     temperature_unit: 'fahrenheit',
     timezone:  'auto',
     start_date: isoDate,
@@ -19,17 +19,23 @@ async function fetchWeather(lat, lon, isoDate) {
       const { data } = await axios.get(url, { params, timeout: 10000 });
       if (!data.daily?.weathercode) throw new Error('Missing daily data');
 
-      const code = data.daily.weathercode[0];
-      const high = Math.round(data.daily.temperature_2m_max[0]);
-      const low  = Math.round(data.daily.temperature_2m_min[0]);
-      const rain = data.daily.precipitation_probability_max[0];
+      const code          = data.daily.weathercode[0];
+      const high          = Math.round(data.daily.temperature_2m_max[0]);
+      const low           = Math.round(data.daily.temperature_2m_min[0]);
+      const feelsLikeHigh = Math.round(data.daily.apparent_temperature_max[0]);
+      const feelsLikeLow  = Math.round(data.daily.apparent_temperature_min[0]);
+      const rain          = data.daily.precipitation_probability_max[0];
 
       return {
         condition:  wmoToCondition(code),
         high,
         low,
-        highC: Math.round((high - 32) * 5 / 9),
-        lowC:  Math.round((low  - 32) * 5 / 9),
+        highC:          Math.round((high          - 32) * 5 / 9),
+        lowC:           Math.round((low           - 32) * 5 / 9),
+        feelsLikeHigh,
+        feelsLikeLow,
+        feelsLikeHighC: Math.round((feelsLikeHigh - 32) * 5 / 9),
+        feelsLikeLowC:  Math.round((feelsLikeLow  - 32) * 5 / 9),
         rainChance: rain,
         code,
       };
@@ -38,7 +44,7 @@ async function fetchWeather(lat, lon, isoDate) {
     }
   }
 
-  return { condition: 'Unavailable', high: '–', low: '–', highC: '–', lowC: '–', rainChance: 0, code: -1 };
+  return { condition: 'Unavailable', high: '–', low: '–', highC: '–', lowC: '–', feelsLikeHigh: '–', feelsLikeLow: '–', feelsLikeHighC: '–', feelsLikeLowC: '–', rainChance: 0, code: -1 };
 }
 
 function wmoToCondition(code) {
