@@ -10,13 +10,14 @@ function buildPrintHTML({ dateStr, city, weather, clothingTip, events, familyNam
   const accent  = branding.accent_color  || DEFAULT_ACCENT;
   const logoUrl = branding.logo_url      || '';
 
-  const { condition, high, low, highC, lowC, rainChance } = weather;
+  const { condition, high, low, highC, lowC, feelsLikeHigh, feelsLikeLow, feelsLikeHighC, feelsLikeLowC, rainChance } = weather;
 
   const weatherGrid = [
-    ['Condition', condition],
-    ['High',      `${high}\u00b0F / ${highC}\u00b0C`],
-    ['Low',       `${low}\u00b0F / ${lowC}\u00b0C`],
-    ['Rain',      `${rainChance}% chance`],
+    ['Condition',   condition],
+    ['High',        `${high}\u00b0F / ${highC}\u00b0C`],
+    ['Low',         `${low}\u00b0F / ${lowC}\u00b0C`],
+    ['Feels Like',  `${feelsLikeHigh}\u00b0F / ${feelsLikeHighC}\u00b0C high \u00b7 ${feelsLikeLow}\u00b0F / ${feelsLikeLowC}\u00b0C low`],
+    ['Rain',        `${rainChance}% chance`],
   ].map(([label, val]) =>
     `<tr>`
     + `<td style="width:90px;font-size:11pt;font-weight:bold;color:#555;padding:3px 12px 3px 0;">${label}</td>`
