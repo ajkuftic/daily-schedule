@@ -19,8 +19,8 @@ function buildPrintHTML({ dateStr, city, weather, clothingTip, events, familyNam
     ['Rain',      `${rainChance}% chance`],
   ].map(([label, val]) =>
     `<tr>`
-    + `<td style="width:90px;font-size:11pt;font-weight:bold;color:#555;padding:3px 12px 3px 0;">${label}</td>`
-    + `<td style="font-size:11pt;color:#111;padding:3px 0;">${val}</td>`
+    + `<td style="width:90px;font-size:11pt;font-weight:bold;color:#555;padding:3px 12px 3px 0;vertical-align:top;white-space:nowrap;">${label}</td>`
+    + `<td style="font-size:11pt;color:#111;padding:3px 0;vertical-align:top;">${val}</td>`
     + `</tr>`
   ).join('');
 

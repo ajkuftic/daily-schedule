@@ -19,8 +19,8 @@ function buildEmailHTML({ dateStr, city, weather, clothingTip, events, familyNam
     ['Rain',      `${rainChance}% chance`],
   ].map(([label, val]) =>
     `<tr>`
-    + `<td class="weather-label" style="padding:4px 16px 4px 0;font-family:Arial,sans-serif;font-size:13px;color:#888;font-weight:700;">${label}</td>`
-    + `<td style="padding:4px 0;font-family:Arial,sans-serif;font-size:13px;color:${primary};">${val}</td>`
+    + `<td class="weather-label" style="padding:4px 16px 4px 0;font-family:Arial,sans-serif;font-size:13px;color:#888;font-weight:700;vertical-align:top;white-space:nowrap;">${label}</td>`
+    + `<td style="padding:4px 0;font-family:Arial,sans-serif;font-size:13px;color:${primary};vertical-align:top;">${val}</td>`
     + `</tr>`
   ).join('');
 
