@@ -234,7 +234,7 @@ document.getElementById('testSendConfirmBtn')?.addEventListener('click', async (
   try {
     const res  = await fetch('/api/send-test', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-csrf-token': getCsrfToken() },
       body:    JSON.stringify({ email }),
     });
     const data = await res.json();
