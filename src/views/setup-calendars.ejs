@@ -4,6 +4,7 @@
 <p class="subtitle">Add one or more calendar accounts to pull events from.</p>
 
 <% if (flash.saved === 'blurbs')  { %><div class="alert alert-success">Blurbs setting updated.</div>
+<% } else if (flash.saved === 'travel') { %><div class="alert alert-success">Travel setting updated.</div>
 <% } else if (flash.saved === 'edited') { %><div class="alert alert-success">Calendar updated.</div>
 <% } else if (flash.saved)    { %><div class="alert alert-success">Calendar added.</div><% } %>
 <% if (flash.deleted) { %><div class="alert alert-success">Calendar removed.</div><% } %>
@@ -13,7 +14,7 @@
   <div class="card" style="margin-bottom:24px;">
     <h3>Connected Calendars</h3>
     <table class="table">
-      <thead><tr><th>Name</th><th>Provider</th><th>Reminder?</th><th>Blurbs</th><th></th></tr></thead>
+      <thead><tr><th>Name</th><th>Provider</th><th>Reminder?</th><th>Blurbs</th><th title="When checked, events from this calendar do not affect travel time origin calculations">Skip Travel</th><th></th></tr></thead>
       <tbody>
         <% for (const a of accounts) { %>
           <tr>
@@ -36,6 +37,15 @@
                   onchange="this.form.submit()">
               </form>
             </td>
+            <td>
+              <form method="POST" action="/setup/calendars/<%= a.id %>/travel" style="display:inline;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="travel_excluded" value="0">
+                <input type="checkbox" name="travel_excluded" value="1" title="Exclude this calendar from travel origin calculations"
+                  <%= a.metadata && a.metadata.travelLocationExcluded ? 'checked' : '' %>
+                  onchange="this.form.submit()">
+              </form>
+            </td>
             <td style="white-space:nowrap;">
               <a href="/setup/calendars/<%= a.id %>/edit" class="btn btn-sm btn-ghost">Edit</a>
               <form method="POST" action="/setup/calendars/delete/<%= a.id %>" style="display:inline;">
@@ -47,7 +57,10 @@
         <% } %>
       </tbody>
     </table>
-    <p class="hint" style="margin-top:8px;">Blurbs column controls whether Claude generates event descriptions for each calendar. Requires AI Blurbs to be enabled globally in <a href="/setup/blurbs">AI Blurbs settings</a>.</p>
+    <p class="hint" style="margin-top:8px;">
+      Blurbs column controls whether Claude generates event descriptions for each calendar. Requires AI Blurbs to be enabled globally in <a href="/setup/blurbs">AI Blurbs settings</a>.<br>
+      Skip Travel column excludes a calendar's events from affecting travel origin calculations — useful for work travel or info-only calendars.
+    </p>
   </div>
 <% } %>
 

@@ -36,6 +36,19 @@
   </div>
 
   <div class="card">
+    <h3>Google Maps (Optional)</h3>
+    <p class="muted">Used to calculate real driving times between event locations. Requires a Maps Distance Matrix API key. Set your home address on the <a href="/setup/family">Family &amp; Location</a> page.</p>
+    <div class="form-group">
+      <label>API Key</label>
+      <input type="password" name="google_maps_api_key"
+        value="<%= config.google_maps_api_key ? '••••••••' : '' %>"
+        placeholder="AIza..."
+        autocomplete="off">
+      <% if (config.google_maps_api_key) { %><p class="field-hint">Key is set. Enter a new value to replace it.</p><% } %>
+    </div>
+  </div>
+
+  <div class="card">
     <h3>Epson Connect (Optional)</h3>
     <p class="muted">Auto-print the PDF to your Epson printer. Find this address in the Epson Connect app.</p>
     <div class="form-group">

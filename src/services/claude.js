@@ -2,6 +2,7 @@
 
 const Anthropic = require('@anthropic-ai/sdk');
 const crypto    = require('crypto');
+const { getTravelDuration } = require('./directions');
 
 const MODEL   = 'claude-haiku-4-5';
 const RETRIES = 3;
@@ -14,8 +15,10 @@ function blurbCacheKey(event, isoDate) {
 }
 
 async function enrichEventsWithBlurbs(events, city, dateStr, apiKey, isoDate) {
-  const db     = require('../db/index');
-  const config = db.getAllConfig();
+  const db          = require('../db/index');
+  const config      = db.getAllConfig();
+  const mapsApiKey  = config.google_maps_api_key || '';
+  const homeAddress = config.home_address || '';
 
   if (config.blurbs_enabled === '0') {
     console.log('[blurb] Disabled — skipping blurbs');
@@ -41,6 +44,10 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey, isoDate) {
     a.id,
     new Set(a.metadata?.blurbsDisabledCalendarIds || []),
   ]));
+  // Accounts excluded from travel origin calculations
+  const travelExcludedAccountIds = new Set(
+    accounts.filter(a => a.metadata?.travelLocationExcluded).map(a => a.id)
+  );
 
   const timedEvents = events.filter(e => {
     if (e.allDay) return false;
@@ -50,9 +57,12 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey, isoDate) {
     return true;
   });
 
-  let baseLocation = city;
+  let baseLocation = homeAddress || city;
   for (const e of events) {
-    if (e.allDay && e.location) { baseLocation = e.location; break; }
+    if (e.allDay && e.location && !travelExcludedAccountIds.has(e.calendarAccountId)) {
+      baseLocation = e.location;
+      break;
+    }
   }
 
   for (let i = 0; i < timedEvents.length; i++) {
@@ -71,7 +81,6 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey, isoDate) {
         if (cached.blurb) event.generatedBlurb = cached.blurb;
         if (cached.travel) {
           event.travelDuration = cached.travel;
-          // travelFromLocation can't be reconstructed from cache; that's fine
         }
         if (config.blurbs_debug === '1') {
           console.log(`[blurb:debug] Cache hit for "${event.title}"`);
@@ -80,13 +89,26 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey, isoDate) {
       }
     }
 
-    const timeStr        = formatTime(event.start, event.timezone) + ' – ' + formatTime(event.end, event.timezone);
+    const timeStr         = formatTime(event.start, event.timezone) + ' – ' + formatTime(event.end, event.timezone);
     const locationContext = event.location ? `Location: ${event.location}` : `City context: ${city}`;
-    const prevLocation    = (i > 0 && timedEvents[i - 1].location) ? timedEvents[i - 1].location : baseLocation;
-    const travelContext   = (event.location && prevLocation && event.location !== prevLocation)
-      ? `\nPrevious location: ${prevLocation}` : '';
+    const prevEvent       = i > 0 ? timedEvents[i - 1] : null;
+    const prevUsable      = prevEvent && prevEvent.location && !travelExcludedAccountIds.has(prevEvent.calendarAccountId);
+    const prevLocation    = prevUsable ? prevEvent.location : baseLocation;
+    const needsTravel     = config.travel_enabled !== '0' && event.location && prevLocation && event.location !== prevLocation;
 
-    const travelInstruction = config.travel_enabled === '0'
+    // Try Google Maps first for travel duration
+    let mapsDuration = null;
+    if (needsTravel && mapsApiKey) {
+      mapsDuration = await getTravelDuration(prevLocation, event.location, mapsApiKey);
+      if (config.blurbs_debug === '1') {
+        console.log(`[blurb:debug] Maps travel "${prevLocation}" → "${event.location}": ${mapsDuration || '(no result)'}`);
+      }
+    }
+
+    const travelContext = needsTravel ? `\nPrevious location: ${prevLocation}` : '';
+
+    // If Maps gave us a duration, tell Claude to skip the travel part
+    const travelInstruction = config.travel_enabled === '0' || mapsDuration
       ? `2. Leave this part completely empty.\n\n`
       : `2. ONLY if the previous location and current location are different and both are known: `
         + `a single short travel duration — JUST the time estimate, nothing else. `
@@ -119,7 +141,8 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey, isoDate) {
     const parts = raw.split('---TRAVEL---');
     event.generatedBlurb = parts[0].trim();
 
-    const duration = (parts[1] || '').trim();
+    // Prefer Maps duration; fall back to Claude's estimate
+    const duration = mapsDuration || (parts[1] || '').trim();
 
     if (config.blurbs_debug === '1') {
       console.log(`[blurb:debug] Blurb: "${event.generatedBlurb}" | Travel: "${duration || '(none)'}"`);
