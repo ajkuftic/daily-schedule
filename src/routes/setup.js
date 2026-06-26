@@ -203,6 +203,17 @@ router.post('/calendars/:id/blurbs', (req, res) => {
   res.redirect('/setup/calendars?saved=blurbs');
 });
 
+// Toggle travel-location exclusion for a calendar
+router.post('/calendars/:id/travel', (req, res) => {
+  const id      = parseInt(req.params.id, 10);
+  const account = db.getCalendarAccount(id);
+  if (!account) return res.redirect('/setup/calendars?error=Calendar+not+found');
+  const excluded = [].concat(req.body.travel_excluded).some(x => x === 'on' || x === '1');
+  const newMeta  = { ...(account.metadata || {}), travelLocationExcluded: excluded };
+  db.upsertCalendarAccount({ ...account, metadata: newMeta });
+  res.redirect('/setup/calendars?saved=travel');
+});
+
 // Edit calendar account
 router.get('/calendars/:id/edit', async (req, res) => {
   const id      = parseInt(req.params.id, 10);

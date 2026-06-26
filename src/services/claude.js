@@ -44,6 +44,10 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey, isoDate) {
     a.id,
     new Set(a.metadata?.blurbsDisabledCalendarIds || []),
   ]));
+  // Accounts excluded from travel origin calculations
+  const travelExcludedAccountIds = new Set(
+    accounts.filter(a => a.metadata?.travelLocationExcluded).map(a => a.id)
+  );
 
   const timedEvents = events.filter(e => {
     if (e.allDay) return false;
@@ -55,7 +59,10 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey, isoDate) {
 
   let baseLocation = homeAddress || city;
   for (const e of events) {
-    if (e.allDay && e.location) { baseLocation = e.location; break; }
+    if (e.allDay && e.location && !travelExcludedAccountIds.has(e.calendarAccountId)) {
+      baseLocation = e.location;
+      break;
+    }
   }
 
   for (let i = 0; i < timedEvents.length; i++) {
@@ -84,7 +91,9 @@ async function enrichEventsWithBlurbs(events, city, dateStr, apiKey, isoDate) {
 
     const timeStr         = formatTime(event.start, event.timezone) + ' – ' + formatTime(event.end, event.timezone);
     const locationContext = event.location ? `Location: ${event.location}` : `City context: ${city}`;
-    const prevLocation    = (i > 0 && timedEvents[i - 1].location) ? timedEvents[i - 1].location : baseLocation;
+    const prevEvent       = i > 0 ? timedEvents[i - 1] : null;
+    const prevUsable      = prevEvent && prevEvent.location && !travelExcludedAccountIds.has(prevEvent.calendarAccountId);
+    const prevLocation    = prevUsable ? prevEvent.location : baseLocation;
     const needsTravel     = config.travel_enabled !== '0' && event.location && prevLocation && event.location !== prevLocation;
 
     // Try Google Maps first for travel duration
