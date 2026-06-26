@@ -74,7 +74,7 @@ router.get('/family', (req, res) => {
 
 router.post('/family', (req, res) => {
   try {
-    const { family_name, from_name, timezone, default_city, default_lat, default_lon, alert_email } = req.body;
+    const { family_name, from_name, timezone, default_city, default_lat, default_lon, home_address, alert_email } = req.body;
     if (!family_name) throw new Error('Family name is required');
     if (!timezone)    throw new Error('Timezone is required');
     db.setConfig('family_name',  family_name);
@@ -83,6 +83,7 @@ router.post('/family', (req, res) => {
     db.setConfig('default_city', default_city);
     db.setConfig('default_lat',  default_lat);
     db.setConfig('default_lon',  default_lon);
+    db.setConfig('home_address', home_address || '');
     db.setConfig('alert_email',  alert_email || '');
     res.redirect('/setup/family?saved=1');
   } catch (err) {
@@ -98,9 +99,10 @@ router.get('/api-keys', (req, res) => {
 
 router.post('/api-keys', (req, res) => {
   try {
-    const { claude_api_key, html2pdf_api_key, epson_connect_email, epson_enabled } = req.body;
-    if (claude_api_key   && !claude_api_key.startsWith('••'))   db.setConfig('claude_api_key',   claude_api_key);
-    if (html2pdf_api_key && !html2pdf_api_key.startsWith('••')) db.setConfig('html2pdf_api_key', html2pdf_api_key);
+    const { claude_api_key, html2pdf_api_key, google_maps_api_key, epson_connect_email, epson_enabled } = req.body;
+    if (claude_api_key       && !claude_api_key.startsWith('••'))       db.setConfig('claude_api_key',       claude_api_key);
+    if (html2pdf_api_key     && !html2pdf_api_key.startsWith('••'))     db.setConfig('html2pdf_api_key',     html2pdf_api_key);
+    if (google_maps_api_key  && !google_maps_api_key.startsWith('••'))  db.setConfig('google_maps_api_key',  google_maps_api_key);
     db.setConfig('epson_connect_email', epson_connect_email || '');
     db.setConfig('epson_enabled', epson_enabled === '1' ? '1' : '');
     res.redirect('/setup/api-keys?saved=1');
